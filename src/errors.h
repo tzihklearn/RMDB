@@ -59,6 +59,11 @@ class FileNotFoundError : public RMDBError {
     FileNotFoundError(const std::string &filename) : RMDBError("File not found: " + filename) {}
 };
 
+class FileNotDeleteError : public RMDBError {
+    public:
+    FileNotDeleteError(const std::string &filename) : RMDBError("File not delete: " + filename) {}
+};
+
 // RM errors
 class RecordNotFoundError : public RMDBError {
    public:

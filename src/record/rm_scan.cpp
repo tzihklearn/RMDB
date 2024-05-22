@@ -16,27 +16,44 @@ See the Mulan PSL v2 for more details. */
  * @param file_handle
  */
 RmScan::RmScan(const RmFileHandle *file_handle) : file_handle_(file_handle) {
-    // Todo:
     // 初始化file_handle和rid（指向第一个存放了记录的位置）
-
+    rid_.page_no = RM_FIRST_RECORD_PAGE;
+    rid_.slot_no = -1;
+    next();
 }
 
 /**
  * @brief 找到文件中下一个存放了记录的位置
  */
 void RmScan::next() {
-    // Todo:
-    // 找到文件中下一个存放了记录的非空闲位置，用rid_来指向这个位置
+    if (is_end()) {
+        return;
+    }
+    auto &file_hdr = file_handle_->file_hdr_;
 
+    // 提前获取当前页的页面句柄
+    auto current_page = file_handle_->fetch_page_handle(rid_.page_no);
+
+    for (int page_no = rid_.page_no; page_no < file_hdr.num_pages; ++page_no) {
+        auto &bitmap = current_page.bitmap;
+        int num_record = file_hdr.num_records_per_page;
+
+        rid_.slot_no = Bitmap::next_bit(true, bitmap, num_record, rid_.slot_no);
+        if (rid_.slot_no < num_record) {
+            return;
+        }
+        current_page = file_handle_->fetch_page_handle(page_no + 1);
+    }
+    // 遍历页面都没找到
+    rid_.page_no = RM_NO_PAGE;
 }
+
 
 /**
  * @brief ​ 判断是否到达文件末尾
  */
 bool RmScan::is_end() const {
-    // Todo: 修改返回值
-
-    return false;
+    return rid_.page_no == RM_NO_PAGE;
 }
 
 /**
