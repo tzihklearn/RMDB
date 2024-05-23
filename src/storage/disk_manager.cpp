@@ -121,7 +121,7 @@ void DiskManager::create_file(const std::string &path) {
     }
 
     // 2. 调用 open 函数，使用 O_CREAT 模式
-    int fd = open(path.c_str(), O_CREAT, 0666);
+    int fd = open(path.c_str(), O_CREAT, 0664);
     if (fd == -1) {
         throw InternalError("DiskManager::create_file Error: open failed");
     }
@@ -173,7 +173,7 @@ int DiskManager::open_file(const std::string &path) {
     // 3. 调用open()函数，使用O_RDWR模式
     int fd = open(path.c_str(), O_RDWR);
     if (fd == -1) {
-        throw FileNotOpenError(path2fd_[path]);
+        throw FileNotFoundError(path);
     }
 
     // 4. 更新文件打开列表
