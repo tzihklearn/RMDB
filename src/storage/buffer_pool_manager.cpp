@@ -77,8 +77,8 @@ Page *BufferPoolManager::fetch_page(PageId page_id) {
     }
 
     // 1.2 否则，尝试调用find_victim_page获得一个可用的frame
-    frame_id_t victim_frame = find_victim_page(&victim_frame);
-    if (victim_frame == INVALID_FRAME_ID) {
+    frame_id_t victim_frame;
+    if (!find_victim_page(&victim_frame)) {
         // 如果没有找到可用的frame，返回nullptr
         return nullptr;
     }
@@ -173,8 +173,8 @@ Page *BufferPoolManager::new_page(PageId *page_id) {
     std::scoped_lock lock{latch_};
 
     // 1. 获得一个可用的frame，若无法获得则返回nullptr
-    frame_id_t victim_frame = find_victim_page(&victim_frame);
-    if (victim_frame == INVALID_FRAME_ID) {
+    frame_id_t victim_frame;
+    if (!find_victim_page(&victim_frame)) {
         return nullptr;
     }
 
