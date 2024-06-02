@@ -52,6 +52,15 @@ inline std::string coltype2str(ColType type) {
     return m.at(type);
 }
 
+// 判断两列的数据类型是否能够比较
+inline bool checkType(ColType lhs, ColType rhs) {
+    if ((lhs == TYPE_INT && rhs == TYPE_FLOAT) || (lhs == TYPE_FLOAT && rhs == TYPE_INT)) {
+        return true;
+    } else {
+        return lhs == rhs;
+    }
+}
+
 class RecScan {
 public:
     virtual ~RecScan() = default;

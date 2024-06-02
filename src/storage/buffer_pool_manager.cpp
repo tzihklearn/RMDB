@@ -23,12 +23,10 @@ bool BufferPoolManager::find_victim_page(frame_id_t *frame_id) {
         free_list_.pop_front();
         return true;
     }
-
     // 1.2 已满使用lru_replacer中的方法选择淘汰页面
     if (replacer_->victim(frame_id)) {
         return true;
     }
-
     // 如果 LRU 列表中也找不到可淘汰的页面，返回 false
     return false;
 }
@@ -75,14 +73,12 @@ Page *BufferPoolManager::fetch_page(PageId page_id) {
         page->pin_count_++;
         return page;
     }
-
     // 1.2 否则，尝试调用find_victim_page获得一个可用的frame
     frame_id_t victim_frame;
     if (!find_victim_page(&victim_frame)) {
         // 如果没有找到可用的frame，返回nullptr
         return nullptr;
     }
-
     // 2. 若获得的可用frame存储的为dirty page，则须调用update_page将page写回到磁盘
     Page *page = &(pages_[victim_frame]);
     update_page(page, page_id, victim_frame);
@@ -121,7 +117,6 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
         // 2.1 若pin_count_已经等于0，则返回false
         return false;
     }
-
     // 2.2 若pin_count_大于0，则pin_count_自减一
     page->pin_count_--;
 
@@ -129,12 +124,10 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
     if (page->pin_count_ == 0) {
         replacer_->unpin(frame);
     }
-
     // 3 根据参数is_dirty，更改P的is_dirty_
     if (is_dirty) {
         page->is_dirty_ = true;
     }
-
     return true;
 }
 
@@ -161,7 +154,6 @@ bool BufferPoolManager::flush_page(PageId page_id) {
 
     // 3. 更新P的is_dirty_
     page->is_dirty_ = false;
-
     return true;
 }
 
@@ -208,19 +200,16 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     if (!page_table_.count(page_id)) {
         return true;
     }
-
     // 2.   若目标页的pin_count不为0，则返回false
     auto frame = page_table_[page_id];
     Page *page = &(pages_[frame]);
     if (page->pin_count_ != 0) {
         return false;
     }
-
     // 3.   将目标页数据写回磁盘，从页表中删除目标页，重置其元数据，将其加入free_list_，返回true
     if (page->is_dirty_) {
         disk_manager_->write_page(page_id.fd, page_id.page_no, page->data_, PAGE_SIZE);
     }
-
     // 从页表中删除目标页
     page_table_.erase(page_id);
 
@@ -232,7 +221,6 @@ bool BufferPoolManager::delete_page(PageId page_id) {
 
     // 将其加入free_list_
     free_list_.emplace_back(frame);
-
     return true;
 }
 
@@ -250,11 +238,34 @@ void BufferPoolManager::flush_all_pages(int fd) {
         if (page->id_.fd != fd) {
             continue;
         }
-
         // 写回脏页
         if (page->is_dirty_) {
             disk_manager_->write_page(fd, page->id_.page_no, page->data_, PAGE_SIZE);
             page->is_dirty_ = false;
+        }
+    }
+}
+
+/**
+ * 删除所有页
+ * @param fd
+ */
+void BufferPoolManager::delete_all_pages(int fd) {
+    std::scoped_lock lock{latch_};
+    std::vector<PageId> to_delete;
+    for (auto &[page_id, frame]: page_table_) {
+        if (page_id.fd == fd) {
+            to_delete.push_back(page_id);
+        }
+    }
+    for (auto page_id: to_delete) {
+        // 如果该页面还没有unpin，则unpin
+        auto frame = page_table_[page_id];
+        replacer_->unpin(frame);
+
+        // 调用delete_page来删除页面
+        if (!delete_page(page_id)) {
+            throw UnixError();
         }
     }
 }

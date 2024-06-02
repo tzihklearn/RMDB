@@ -9,6 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #pragma once
+
 #include "execution_defs.h"
 #include "execution_manager.h"
 #include "executor_abstract.h"
@@ -16,7 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "system/sm.h"
 
 class DeleteExecutor : public AbstractExecutor {
-   private:
+private:
     TabMeta tab_;                   // 表的元数据
     std::vector<Condition> conds_;  // delete的条件
     RmFileHandle *fh_;              // 表的数据文件句柄
@@ -24,7 +25,7 @@ class DeleteExecutor : public AbstractExecutor {
     std::string tab_name_;          // 表名称
     SmManager *sm_manager_;
 
-   public:
+public:
     DeleteExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<Condition> conds,
                    std::vector<Rid> rids, Context *context) {
         sm_manager_ = sm_manager;
@@ -37,6 +38,29 @@ class DeleteExecutor : public AbstractExecutor {
     }
 
     std::unique_ptr<RmRecord> Next() override {
+        // 遍历所有需要删除的位置
+        for (const auto &rid: rids_) {
+            // 先获取原记录，索引和事务要用
+            auto record = fh_->get_record(rid, context_);
+            for (const auto &index: tab_.indexes) {
+                auto ih = sm_manager_->ihs_.at(
+                        sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+                std::vector<char> key(index.col_tot_len);
+                int offset = 0;
+                for (size_t i = 0; i < index.col_num; ++i) {
+                    memcpy(key.data() + offset, record->data + index.cols[i].offset, index.cols[i].len);
+                    offset += index.cols[i].len;
+                }
+                ih->delete_entry(key.data(), context_->txn_);
+            }
+
+            // TODO 索引
+
+            // TODO 事务
+
+            // 删除记录
+            fh_->delete_record(rid, context_);
+        }
         return nullptr;
     }
 

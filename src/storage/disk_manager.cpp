@@ -119,13 +119,11 @@ void DiskManager::create_file(const std::string &path) {
     if (is_file(path)) {
         throw FileExistsError(path);
     }
-
     // 2. 调用 open 函数，使用 O_CREAT 模式
     int fd = open(path.c_str(), O_CREAT, 0664);
     if (fd == -1) {
         throw InternalError("DiskManager::create_file Error: open failed");
     }
-
     // 3. 关闭文件描述符
     if (close(fd) == -1) {
         throw FileNotClosedError(path);
@@ -141,12 +139,10 @@ void DiskManager::destroy_file(const std::string &path) {
     if (!is_file(path)) {
         throw FileNotFoundError(path);
     }
-
     // 2. 查看文件是否已经关闭
     if (path2fd_.count(path)) {
-        throw FileNotClosedError(path);
+        close_file(path2fd_[path]);
     }
-
     // 3. 调用 unlink 函数
     if (unlink(path.c_str()) == -1) {
         throw FileNotDeleteError(path);
@@ -164,18 +160,15 @@ int DiskManager::open_file(const std::string &path) {
     if (!is_file(path)) {
         throw FileNotFoundError(path);
     }
-
     // 2. 查看文件是否已经打开
     if (path2fd_.count(path)) {
         return path2fd_[path];
     }
-
     // 3. 调用open()函数，使用O_RDWR模式
     int fd = open(path.c_str(), O_RDWR);
     if (fd == -1) {
         throw FileNotFoundError(path);
     }
-
     // 4. 更新文件打开列表
     path2fd_.emplace(path, fd);
     fd2path_.emplace(fd, path);
@@ -191,12 +184,10 @@ void DiskManager::close_file(int fd) {
     if (fd2path_.count(fd) == 0) {
         return;
     }
-
     // 2. 调用close()函数关闭文件
     if (close(fd) == -1) {
         throw FileNotClosedError(fd2path_[fd]);
     }
-
     // 3. 更新文件打开列表
     path2fd_.erase(fd2path_[fd]);
     fd2path_.erase(fd);
