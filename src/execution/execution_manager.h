@@ -35,6 +35,9 @@ class QlManager {
     Planner *planner_;
 
    public:
+    QlManager(SmManager *sm_manager, TransactionManager *txn_mgr)
+            : sm_manager_(sm_manager),  txn_mgr_(txn_mgr) {}
+
     QlManager(SmManager *sm_manager, TransactionManager *txn_mgr, Planner *planner) 
         : sm_manager_(sm_manager),  txn_mgr_(txn_mgr), planner_(planner) {}
 

@@ -171,3 +171,9 @@ class PageNotExistError : public RMDBError {
     PageNotExistError(const std::string &table_name, int page_no)
         : RMDBError("Page " + std::to_string(page_no) + " in table " + table_name + "not exits") {}
 };
+
+class InvalidTypeError : public RMDBError {
+    public:
+    InvalidTypeError()
+        : RMDBError("Invalid Type Error: Cannot convert to record") {}
+};

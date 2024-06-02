@@ -14,9 +14,10 @@ See the Mulan PSL v2 for more details. */
 #include "common/common.h"
 #include "index/ix.h"
 #include "system/sm.h"
+#include "defs.h"
 
 class AbstractExecutor {
-   public:
+public:
     Rid _abstract_rid;
 
     Context *context_;
@@ -32,9 +33,9 @@ class AbstractExecutor {
 
     virtual std::string getType() { return "AbstractExecutor"; };
 
-    virtual void beginTuple(){};
+    virtual void beginTuple() {};
 
-    virtual void nextTuple(){};
+    virtual void nextTuple() {};
 
     virtual bool is_end() const { return true; };
 
@@ -42,9 +43,9 @@ class AbstractExecutor {
 
     virtual std::unique_ptr<RmRecord> Next() = 0;
 
-    virtual ColMeta get_col_offset(const TabCol &target) { return ColMeta();};
+    virtual ColMeta get_col_offset(const TabCol &target) { return ColMeta(); };
 
-    std::vector<ColMeta>::const_iterator get_col(const std::vector<ColMeta> &rec_cols, const TabCol &target) {
+    std::vector<ColMeta>::const_iterator get_col(const std::vector<ColMeta> &rec_cols, const TabCol &target) const {
         auto pos = std::find_if(rec_cols.begin(), rec_cols.end(), [&](const ColMeta &col) {
             return col.tab_name == target.tab_name && col.name == target.col_name;
         });
@@ -52,5 +53,61 @@ class AbstractExecutor {
             throw ColumnNotFoundError(target.tab_name + '.' + target.col_name);
         }
         return pos;
+    }
+
+    // 从 Record 中取出某一列的 Value
+    Value fetch_value(const std::unique_ptr<RmRecord> &record, const ColMeta &columnMeta) const {
+        const char *data = record->data + columnMeta.offset;
+        size_t len = columnMeta.len;
+        Value result;
+        result.type = columnMeta.type;
+
+        switch (columnMeta.type) {
+            case TYPE_INT: {
+                int tmp;
+                memcpy(&tmp, data, sizeof(int));
+                result.set_int(tmp);
+                break;
+            }
+            case TYPE_FLOAT: {
+                float tmp;
+                memcpy(&tmp, data, sizeof(float));
+                result.set_float(tmp);
+                break;
+            }
+            case TYPE_STRING: {
+                std::string tmp(data, len);
+                result.set_str(tmp);
+                break;
+            }
+            default:
+                throw InvalidTypeError();
+        }
+
+        result.init_raw(len);
+        return result;
+    }
+
+    bool compare_value(const Value &leftValue, const Value &rightValue, CompOp op) const {
+        if (!checkType(leftValue.type, rightValue.type)) {
+            throw IncompatibleTypeError(coltype2str(leftValue.type), coltype2str(rightValue.type));
+        }
+
+        switch (op) {
+            case OP_EQ:
+                return leftValue == rightValue;
+            case OP_NE:
+                return leftValue != rightValue;
+            case OP_LT:
+                return leftValue < rightValue;
+            case OP_GT:
+                return leftValue > rightValue;
+            case OP_LE:
+                return leftValue <= rightValue;
+            case OP_GE:
+                return leftValue >= rightValue;
+            default:
+                throw IncompatibleTypeError(coltype2str(leftValue.type), coltype2str(rightValue.type));
+        }
     }
 };
