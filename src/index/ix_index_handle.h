@@ -13,34 +13,50 @@ See the Mulan PSL v2 for more details. */
 #include "ix_defs.h"
 #include "transaction/transaction.h"
 
-enum class Operation { FIND = 0, INSERT, DELETE };  // 三种操作：查找、插入、删除
+enum class Operation {
+    FIND = 0, INSERT, DELETE
+};  // 三种操作：查找、插入、删除
 
 static const bool binary_search = false;
 
+/**
+ * a < b : -1
+ * a = b : 0
+ * a > b : 1
+ */
 inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
     switch (type) {
         case TYPE_INT: {
-            int ia = *(int *)a;
-            int ib = *(int *)b;
+            int ia = *(int *) a;
+            int ib = *(int *) b;
             return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
         }
         case TYPE_FLOAT: {
-            float fa = *(float *)a;
-            float fb = *(float *)b;
+            float fa = *(float *) a;
+            float fb = *(float *) b;
             return (fa < fb) ? -1 : ((fa > fb) ? 1 : 0);
         }
         case TYPE_STRING:
             return memcmp(a, b, col_len);
+        case TYPE_DATETIME: {
+            uint64_t date_a = *(uint64_t *) a;
+            uint64_t date_b = *(uint64_t *) b;
+            return (date_a < date_b) ? -1 : ((date_a > date_b) ? 1 : 0);
+        }
+        case TYPE_BIGINT : {
+            throw RMDBError("Unexpected data type");
+        }
         default:
             throw InternalError("Unexpected data type");
     }
 }
 
-inline int ix_compare(const char* a, const char* b, const std::vector<ColType>& col_types, const std::vector<int>& col_lens) {
+inline int
+ix_compare(const char *a, const char *b, const std::vector<ColType> &col_types, const std::vector<int> &col_lens) {
     int offset = 0;
-    for(size_t i = 0; i < col_types.size(); ++i) {
+    for (size_t i = 0; i < col_types.size(); ++i) {
         int res = ix_compare(a + offset, b + offset, col_types[i], col_lens[i]);
-        if(res != 0) return res;
+        if (res != 0) return res;
         offset += col_lens[i];
     }
     return 0;
@@ -49,16 +65,17 @@ inline int ix_compare(const char* a, const char* b, const std::vector<ColType>& 
 /* 管理B+树中的每个节点 */
 class IxNodeHandle {
     friend class IxIndexHandle;
+
     friend class IxScan;
 
-   private:
+private:
     const IxFileHdr *file_hdr;      // 节点所在文件的头部信息
     Page *page;                     // 存储节点的页面
     IxPageHdr *page_hdr;            // page->data的第一部分，指针指向首地址，长度为sizeof(IxPageHdr)
     char *keys;                     // page->data的第二部分，指针指向首地址，长度为file_hdr->keys_size，每个key的长度为file_hdr->col_len
     Rid *rids;                      // page->data的第三部分，指针指向首地址
 
-   public:
+public:
     IxNodeHandle() = default;
 
     IxNodeHandle(const IxFileHdr *file_hdr_, Page *page_) : file_hdr(file_hdr_), page(page_) {
@@ -75,7 +92,7 @@ class IxNodeHandle {
 
     int get_min_size() { return get_max_size() / 2; }
 
-    int key_at(int i) { return *(int *)get_key(i); }
+    int key_at(int i) { return *(int *) get_key(i); }
 
     /* 得到第i个孩子结点的page_no */
     page_id_t value_at(int i) { return get_rid(i)->page_no; }
@@ -104,7 +121,9 @@ class IxNodeHandle {
 
     Rid *get_rid(int rid_idx) const { return &rids[rid_idx]; }
 
-    void set_key(int key_idx, const char *key) { memcpy(keys + key_idx * file_hdr->col_tot_len_, key, file_hdr->col_tot_len_); }
+    void set_key(int key_idx, const char *key) {
+        memcpy(keys + key_idx * file_hdr->col_tot_len_, key, file_hdr->col_tot_len_);
+    }
 
     void set_rid(int rid_idx, const Rid &rid) { rids[rid_idx] = rid; }
 
@@ -126,6 +145,8 @@ class IxNodeHandle {
     void erase_pair(int pos);
 
     int remove(const char *key);
+
+    bool is_exist_key(const char *key) const;
 
     /**
      * @brief used in internal node to remove the last key in root node, and return the last child
@@ -160,23 +181,24 @@ class IxNodeHandle {
 /* B+树 */
 class IxIndexHandle {
     friend class IxScan;
+
     friend class IxManager;
 
-   private:
+private:
     DiskManager *disk_manager_;
     BufferPoolManager *buffer_pool_manager_;
     int fd_;                                    // 存储B+树的文件
-    IxFileHdr* file_hdr_;                       // 存了root_page，但其初始化为2（第0页存FILE_HDR_PAGE，第1页存LEAF_HEADER_PAGE）
+    IxFileHdr *file_hdr_;                       // 存了root_page，但其初始化为2（第0页存FILE_HDR_PAGE，第1页存LEAF_HEADER_PAGE）
     std::mutex root_latch_;
 
-   public:
+public:
     IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd);
 
     // for search
     bool get_value(const char *key, std::vector<Rid> *result, Transaction *transaction);
 
     std::pair<IxNodeHandle *, bool> find_leaf_page(const char *key, Operation operation, Transaction *transaction,
-                                                 bool find_first = false);
+                                                   bool find_first = false);
 
     // for insert
     page_id_t insert_entry(const char *key, const Rid &value, Transaction *transaction);
@@ -189,7 +211,8 @@ class IxIndexHandle {
     bool delete_entry(const char *key, Transaction *transaction);
 
     bool coalesce_or_redistribute(IxNodeHandle *node, Transaction *transaction = nullptr,
-                                bool *root_is_latched = nullptr);
+                                  bool *root_is_latched = nullptr);
+
     bool adjust_root(IxNodeHandle *old_root_node);
 
     void redistribute(IxNodeHandle *neighbor_node, IxNodeHandle *node, IxNodeHandle *parent, int index);
@@ -205,7 +228,7 @@ class IxIndexHandle {
 
     Iid leaf_begin() const;
 
-   private:
+private:
     // 辅助函数
     void update_root_page_no(page_id_t root) { file_hdr_->root_page_ = root; }
 

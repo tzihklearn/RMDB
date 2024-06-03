@@ -10,8 +10,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "storage/disk_manager.h"
 
-#include <assert.h>    // for assert
-#include <string.h>    // for memset
+#include <cassert>    // for assert
+#include <cstring>    // for memset
 #include <sys/stat.h>  // for stat
 #include <unistd.h>    // for lseek
 
@@ -27,18 +27,15 @@ DiskManager::DiskManager() { memset(fd2pageno_, 0, MAX_FD * (sizeof(std::atomic<
  * @param {int} num_bytes 要写入磁盘的数据大小
  */
 void DiskManager::write_page(int fd, page_id_t page_no, const char *offset, int num_bytes) {
-    // 0. 查看文件是否打开
+    // 1.查看文件是否打开
     assert(fd2path_.count(fd));
-
-    // 1. 使用 lseek 函数定位到文件头，通过 (fd, page_no) 定位到指定页面及其在磁盘文件中的偏移量
-    if (lseek(fd, page_no * PAGE_SIZE, SEEK_SET) == -1) {
-        throw InternalError("DiskManager::write_page Error: lseek failed");
-    }
-
-    // 2. 调用 write 函数将数据写入磁盘
-    ssize_t bytes_written = write(fd, offset, num_bytes);
-    if (bytes_written != num_bytes) {
-        throw InternalError("DiskManager::write_page Error: write failed");
+    // 1.lseek()定位到文件头，通过(fd,page_no)可以定位指定页面及其在磁盘文件中的偏移量
+    lseek(fd, page_no * PAGE_SIZE, SEEK_SET);
+    // 2.调用write()函数
+    ssize_t write_bytes = write(fd, offset, num_bytes);
+    if (write_bytes != num_bytes) {
+        // 注意write返回值与num_bytes不等时 throw InternalError("DiskManager::write_page Error");
+        throw InternalError("DiskManager::write_page Error");
     }
 }
 
@@ -50,18 +47,15 @@ void DiskManager::write_page(int fd, page_id_t page_no, const char *offset, int 
  * @param {int} num_bytes 读取的数据量大小
  */
 void DiskManager::read_page(int fd, page_id_t page_no, char *offset, int num_bytes) {
-    // 0. 检查文件是否打开
+    // 0.检查文件是否打开
     assert(fd2path_.count(fd));
-
-    // 1. 使用 lseek 函数定位到文件头，通过 (fd, page_no) 定位到指定页面及其在磁盘文件中的偏移量
-    if (lseek(fd, page_no * PAGE_SIZE, SEEK_SET) == -1) {
-        throw InternalError("DiskManager::read_page Error: lseek failed");
-    }
-
-    // 2. 调用 read 函数从磁盘读取数据
-    ssize_t bytes_read = read(fd, offset, num_bytes);
-    if (bytes_read != num_bytes) {
-        throw InternalError("DiskManager::read_page Error: read failed");
+    // 1.lseek()定位到文件头，通过(fd,page_no)可以定位指定页面及其在磁盘文件中的偏移量
+    lseek(fd, page_no * PAGE_SIZE, SEEK_SET);
+    // 2.调用read()函数
+    ssize_t read_bytes = read(fd, offset, num_bytes);
+    if (read_bytes != num_bytes) {
+        // 注意read返回值与num_bytes不等时，throw InternalError("DiskManager::read_page Error");
+        throw InternalError("DiskManager::read_page Error");
     }
 }
 
@@ -100,7 +94,7 @@ void DiskManager::destroy_dir(const std::string &path) {
 
 /**
  * @description: 判断指定路径文件是否存在
- * @return {bool} 若指定路径文件存在则返回true 
+ * @return {bool} 若指定路径文件存在则返回true
  * @param {string} &path 指定路径文件
  */
 bool DiskManager::is_file(const std::string &path) {
@@ -115,16 +109,16 @@ bool DiskManager::is_file(const std::string &path) {
  * @param {string} &path
  */
 void DiskManager::create_file(const std::string &path) {
-    // 1. 查看文件是否存在
+    // 1.查看文件是否存在
     if (is_file(path)) {
         throw FileExistsError(path);
     }
-    // 2. 调用 open 函数，使用 O_CREAT 模式
-    int fd = open(path.c_str(), O_CREAT, 0664);
-    if (fd == -1) {
-        throw InternalError("DiskManager::create_file Error: open failed");
+    // 2.调用open()函数，使用O_CREAT模式
+    int fd = open(path.c_str(), O_CREAT, 0666);
+    if (open(path.c_str(), O_CREAT, 0666) == -1) {
+        throw UnixError();
     }
-    // 3. 关闭文件描述符
+    // 3.关闭文件
     if (close(fd) == -1) {
         throw FileNotClosedError(path);
     }
@@ -135,15 +129,15 @@ void DiskManager::create_file(const std::string &path) {
  * @param {string} &path 文件所在路径
  */
 void DiskManager::destroy_file(const std::string &path) {
-    // 1. 查看文件是否存在
+    // 1.查看文件是否存在
     if (!is_file(path)) {
         throw FileNotFoundError(path);
     }
-    // 2. 查看文件是否已经关闭
+    // 2.查看文件是否已经关闭
     if (path2fd_.count(path)) {
-        close_file(path2fd_[path]);
+        throw FileNotClosedError(path);
     }
-    // 3. 调用 unlink 函数
+    // 3.调用unlink()函数删除文件
     if (unlink(path.c_str()) == -1) {
         throw FileNotDeleteError(path);
     }
@@ -151,44 +145,44 @@ void DiskManager::destroy_file(const std::string &path) {
 
 
 /**
- * @description: 打开指定路径文件 
- * @return {int} 返回打开的文件的文件句柄
+ * @description: 打开指定路径文件
+ * @return {int} 返回打开的文件的文件句柄 fd
  * @param {string} &path 文件所在路径
  */
 int DiskManager::open_file(const std::string &path) {
-    // 1. 查看文件是否存在
+    // 1.查看文件是否存在
     if (!is_file(path)) {
         throw FileNotFoundError(path);
     }
-    // 2. 查看文件是否已经打开
+    // 2.查看文件是否已经打开
     if (path2fd_.count(path)) {
         return path2fd_[path];
     }
-    // 3. 调用open()函数，使用O_RDWR模式
+    // 3.调用open()函数，使用O_RDWR模式
     int fd = open(path.c_str(), O_RDWR);
     if (fd == -1) {
-        throw FileNotFoundError(path);
+        throw UnixError();
     }
-    // 4. 更新文件打开列表
+    // 4.更新文件打开列表
     path2fd_.emplace(path, fd);
     fd2path_.emplace(fd, path);
     return fd;
 }
 
 /**
- * @description:用于关闭指定路径文件 
+ * @description:用于关闭指定路径文件
  * @param {int} fd 打开的文件的文件句柄
  */
 void DiskManager::close_file(int fd) {
-    // 1. 查看文件是否已经关闭
+    // 1.查看文件是否已经关闭
     if (fd2path_.count(fd) == 0) {
         return;
     }
-    // 2. 调用close()函数关闭文件
+    // 2.调用close()函数关闭文件
     if (close(fd) == -1) {
         throw FileNotClosedError(fd2path_[fd]);
     }
-    // 3. 更新文件打开列表
+    // 3.更新元信息
     path2fd_.erase(fd2path_[fd]);
     fd2path_.erase(fd);
 }

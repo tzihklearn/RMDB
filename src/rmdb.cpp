@@ -51,7 +51,7 @@ pthread_mutex_t *sockfd_mutex;
 static jmp_buf jmpbuf;
 void sigint_handler(int signo) {
     should_exit = true;
-    log_manager->flush_log_to_disk();
+    log_manager->flush_buffer_to_disk();
     std::cout << "The Server receive Crtl+C, will been closed\n";
     longjmp(jmpbuf, 1);
 }
@@ -98,7 +98,7 @@ void *client_handler(void *sock_fd) {
             std::cout << "Client read error!" << std::endl;
             break;
         }
-        
+
         printf("i_recvBytes: %d \n ", i_recvBytes);
 
         if (strcmp(data_recv, "exit") == 0) {
@@ -117,7 +117,7 @@ void *client_handler(void *sock_fd) {
 
         // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
         Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset);
-//        SetTransaction(&txn_id, context);
+        SetTransaction(&txn_id, context);
 
         // 用于判断是否已经调用了yy_delete_buffer来删除buf
         bool finish_analyze = false;
@@ -179,10 +179,10 @@ void *client_handler(void *sock_fd) {
             break;
         }
         // 如果是单挑语句，需要按照一个完整的事务来执行，所以执行完当前语句后，自动提交事务
-//        if(!context->txn_->get_txn_mode())
-//        {
-//            txn_manager->commit(context->txn_, context->log_mgr_);
-//        }
+        if(!context->txn_->get_txn_mode())
+        {
+            txn_manager->commit(context->txn_, context->log_mgr_);
+        }
     }
 
     // Clear
@@ -243,7 +243,7 @@ void start_server() {
             std::cout << "Accept error!" << std::endl;
             continue;  // ignore current socket ,continue while loop.
         }
-        
+
         // 和客户端建立连接，并开启一个线程负责处理客户端请求
         if (pthread_create(&thread_id, nullptr, &client_handler, (void *)(&sockfd)) != 0) {
             std::cout << "Create thread fail!" << std::endl;
@@ -292,10 +292,11 @@ int main(int argc, char **argv) {
         sm_manager->open_db(db_name);
 
         // recovery database
-        recovery->analyze();
+        int lsn = recovery->analyze();
+        log_manager->set_lsn(lsn);
         recovery->redo();
         recovery->undo();
-        
+
         // 开启服务端，开始接受客户端连接
         start_server();
     } catch (RMDBError &e) {

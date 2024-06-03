@@ -33,12 +33,12 @@ class SortExecutor : public AbstractExecutor {
         used_tuple.clear();
     }
 
-    void beginTuple() override { 
-        
+    void beginTuple() override {
+
     }
 
     void nextTuple() override {
-        
+
     }
 
     std::unique_ptr<RmRecord> Next() override {

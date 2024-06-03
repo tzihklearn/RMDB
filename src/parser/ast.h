@@ -19,7 +19,7 @@ enum JoinType {
 namespace ast {
 
 enum SvType {
-    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BOOL
+    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BOOL, SV_TYPE_BIGINT, SV_TYPE_DATETIME
 };
 
 enum SvCompOp {
@@ -45,6 +45,11 @@ struct Help : public TreeNode {
 };
 
 struct ShowTables : public TreeNode {
+};
+
+struct ShowIndex : public TreeNode {
+    std::string tab_name;
+    ShowIndex(std::string tab_name_) : tab_name(std::move(tab_name_)) {}
 };
 
 struct TxnBegin : public TreeNode {
@@ -125,6 +130,12 @@ struct IntLit : public Value {
     IntLit(int val_) : val(val_) {}
 };
 
+struct BigIntLit : public Value {
+    std::string val;
+
+    BigIntLit(std::string val_) : val(val_) {}
+};
+
 struct FloatLit : public Value {
     float val;
 
@@ -135,6 +146,12 @@ struct StringLit : public Value {
     std::string val;
 
     StringLit(std::string val_) : val(std::move(val_)) {}
+};
+
+struct DateTimeLit : public Value {
+    std::string val;
+
+    DateTimeLit(std::string val_) : val(std::move(val_)) {}
 };
 
 struct BoolLit : public Value {
@@ -220,7 +237,7 @@ struct SelectStmt : public TreeNode {
     std::vector<std::shared_ptr<BinaryExpr>> conds;
     std::vector<std::shared_ptr<JoinExpr>> jointree;
 
-    
+
     bool has_sort;
     std::shared_ptr<OrderBy> order;
 
@@ -229,7 +246,7 @@ struct SelectStmt : public TreeNode {
                std::vector<std::string> tabs_,
                std::vector<std::shared_ptr<BinaryExpr>> conds_,
                std::shared_ptr<OrderBy> order_) :
-            cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)), 
+            cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)),
             order(std::move(order_)) {
                 has_sort = (bool)order;
             }
@@ -240,7 +257,7 @@ struct SetStmt : public TreeNode {
     SetKnobType set_knob_type_;
     bool bool_val_;
 
-    SetStmt(SetKnobType &type, bool bool_value) : 
+    SetStmt(SetKnobType &type, bool bool_value) :
         set_knob_type_(type), bool_val_(bool_value) { }
 };
 

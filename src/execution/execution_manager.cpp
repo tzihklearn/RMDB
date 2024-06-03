@@ -88,6 +88,31 @@ void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Co
                 sm_manager_->desc_table(x->tab_name_, context);
                 break;
             }
+                // 索引相关
+            case T_ShowIndex: {
+                sm_manager_->show_index(x->tab_name_, context);
+                break;
+            }
+                // 事务相关
+            case T_Transaction_Begin: {
+                context->txn_->set_txn_mode(true);
+                break;
+            }
+            case T_Transaction_Commit: {
+                context->txn_ = txn_mgr_->get_transaction(*txn_id);
+                txn_mgr_->commit(context->txn_, context->log_mgr_);
+                break;
+            }
+            case T_Transaction_Rollback: {
+                context->txn_ = txn_mgr_->get_transaction(*txn_id);
+                txn_mgr_->abort(context->txn_, context->log_mgr_);
+                break;
+            }
+            case T_Transaction_Abort: {
+                context->txn_ = txn_mgr_->get_transaction(*txn_id);
+                txn_mgr_->abort(context->txn_, context->log_mgr_);
+                break;
+            }
             default:
                 throw InternalError("Unexpected field type");
         }
@@ -139,6 +164,18 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
                 case TYPE_STRING: {
                     col_str = std::string((char *) rec_buf, col.len);
                     col_str.resize(strlen(col_str.c_str()));
+                    break;
+                }
+                case TYPE_BIGINT: {
+                    col_str = std::to_string(*(int64_t *) rec_buf);
+                    break;
+                }
+                case TYPE_DATETIME: {
+                    uint64_t raw;
+                    memcpy((char *) &raw, rec_buf, sizeof(raw));
+                    DateTime dt{};
+                    dt.decode(raw);
+                    col_str = dt.encode_to_string();
                     break;
                 }
                 default: {

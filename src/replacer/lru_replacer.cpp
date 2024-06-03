@@ -20,15 +20,19 @@ LRUReplacer::~LRUReplacer() = default;
  * @return {bool} 如果成功淘汰了一个页面则返回true，否则返回false
  */
 bool LRUReplacer::victim(frame_id_t *frame_id) {
-    std::scoped_lock lock{latch_};
+    // C++17 std::scoped_lock
+    // 它能够避免死锁发生，其构造函数能够自动进行上锁操作，析构函数会对互斥量进行解锁操作，保证线程安全。
+    std::scoped_lock lock{latch_};  //  如果编译报错可以替换成其他lock
 
+    // 1.检查是否有frame
     if (LRUlist_.empty()) {
         return false;
     }
-
-    *frame_id = LRUlist_.back();
+    // 2.victim最久未使用的frame
+    auto frame = LRUlist_.back();
+    LRUhash_.erase(frame);
     LRUlist_.pop_back();
-    LRUhash_.erase(*frame_id);
+    *frame_id = frame;
     return true;
 }
 
@@ -39,10 +43,13 @@ bool LRUReplacer::victim(frame_id_t *frame_id) {
 void LRUReplacer::pin(frame_id_t frame_id) {
     std::scoped_lock lock{latch_};
 
-    if (LRUhash_.find(frame_id) != LRUhash_.end()) {
-        LRUlist_.erase(LRUhash_[frame_id]);
-        LRUhash_.erase(frame_id);
+    // 1.检查指定frame是否存在
+    if (LRUhash_.count(frame_id) == 0) {
+        return;
     }
+    // 2.pin指定frame
+    LRUlist_.erase(LRUhash_[frame_id]);
+    LRUhash_.erase(frame_id);
 }
 
 /**
@@ -52,15 +59,13 @@ void LRUReplacer::pin(frame_id_t frame_id) {
 void LRUReplacer::unpin(frame_id_t frame_id) {
     std::scoped_lock lock{latch_};
 
-    if (LRUhash_.find(frame_id) == LRUhash_.end()) {
-        LRUlist_.push_front(frame_id);
-        LRUhash_[frame_id] = LRUlist_.begin();
-
-        if (LRUlist_.size() > max_size_) {
-            LRUhash_.erase(LRUlist_.back());
-            LRUlist_.pop_back();
-        }
+    // 1.检查指定frame是否存在
+    if (LRUhash_.count(frame_id)) {
+        return;
     }
+    // 2.unpin指定frame
+    LRUlist_.emplace_front(frame_id);
+    LRUhash_.emplace(frame_id, LRUlist_.begin());
 }
 
 /**
