@@ -35,34 +35,39 @@ struct RmPageHandle {
     }
 
     // 返回指定slot_no的slot存储收地址
-    char* get_slot(int slot_no) const {
+    char *get_slot(int slot_no) const {
         return slots + slot_no * file_hdr->record_size;  // slots的首地址 + slot个数 * 每个slot的大小(每个record的大小)
     }
 };
 
 /* 每个RmFileHandle对应一个表的数据文件，里面有多个page，每个page的数据封装在RmPageHandle中 */
-class RmFileHandle {      
-    friend class RmScan;    
+class RmFileHandle {
+    friend class RmScan;
+
     friend class RmManager;
 
-   private:
+private:
     DiskManager *disk_manager_;
     BufferPoolManager *buffer_pool_manager_;
     int fd_;        // 打开文件后产生的文件句柄
     RmFileHdr file_hdr_;    // 文件头，维护当前表文件的元数据
 
-   public:
+    // 锁
+    std::mutex latch_;
+
+public:
     RmFileHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd)
-        : disk_manager_(disk_manager), buffer_pool_manager_(buffer_pool_manager), fd_(fd) {
+            : disk_manager_(disk_manager), buffer_pool_manager_(buffer_pool_manager), fd_(fd) {
         // 注意：这里从磁盘中读出文件描述符为fd的文件的file_hdr，读到内存中
         // 这里实际就是初始化file_hdr，只不过是从磁盘中读出进行初始化
         // init file_hdr_
-        disk_manager_->read_page(fd, RM_FILE_HDR_PAGE, (char *)&file_hdr_, sizeof(file_hdr_));
+        disk_manager_->read_page(fd, RM_FILE_HDR_PAGE, (char *) &file_hdr_, sizeof(file_hdr_));
         // disk_manager管理的fd对应的文件中，设置从file_hdr_.num_pages开始分配page_no
         disk_manager_->set_fd2pageno(fd, file_hdr_.num_pages);
     }
 
     RmFileHdr get_file_hdr() { return file_hdr_; }
+
     int GetFd() { return fd_; }
 
     /* 判断指定位置上是否已经存在一条记录，通过Bitmap来判断 */
@@ -85,7 +90,7 @@ class RmFileHandle {
 
     RmPageHandle fetch_page_handle(int page_no) const;
 
-   private:
+private:
     RmPageHandle create_page_handle();
 
     void release_page_handle(RmPageHandle &page_handle);

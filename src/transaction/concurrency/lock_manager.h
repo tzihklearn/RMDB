@@ -18,16 +18,20 @@ static const std::string GroupLockModeStr[10] = {"NON_LOCK", "IS", "IX", "S", "X
 
 class LockManager {
     /* 加锁类型，包括共享锁、排他锁、意向共享锁、意向排他锁、SIX（意向排他锁+共享锁） */
-    enum class LockMode { SHARED, EXLUCSIVE, INTENTION_SHARED, INTENTION_EXCLUSIVE, S_IX };
+    enum class LockMode {
+        SHARED, EXCLUSIVE, INTENTION_SHARED, INTENTION_EXCLUSIVE, S_IX
+    };
 
-    /* 用于标识加锁队列中排他性最强的锁类型，例如加锁队列中有SHARED和EXLUSIVE两个加锁操作，则该队列的锁模式为X */
-    enum class GroupLockMode { NON_LOCK, IS, IX, S, X, SIX};
+    /* 用于标识加锁队列中排他性最强的锁类型，例如加锁队列中有SHARED和EXCLUSIVE两个加锁操作，则该队列的锁模式为X */
+    enum class GroupLockMode {
+        NON_LOCK, IS, IX, S, X, SIX
+    };
 
     /* 事务的加锁申请 */
     class LockRequest {
     public:
         LockRequest(txn_id_t txn_id, LockMode lock_mode)
-            : txn_id_(txn_id), lock_mode_(lock_mode), granted_(false) {}
+                : txn_id_(txn_id), lock_mode_(lock_mode), granted_(false) {}
 
         txn_id_t txn_id_;   // 申请加锁的事务ID
         LockMode lock_mode_;    // 事务申请加锁的类型
@@ -47,21 +51,27 @@ public:
 
     ~LockManager() {}
 
-    bool lock_shared_on_record(Transaction* txn, const Rid& rid, int tab_fd);
+    bool lock_shared_on_record(Transaction *txn, const Rid &rid, int tab_fd);
 
-    bool lock_exclusive_on_record(Transaction* txn, const Rid& rid, int tab_fd);
+    bool lock_exclusive_on_record(Transaction *txn, const Rid &rid, int tab_fd);
 
-    bool lock_shared_on_table(Transaction* txn, int tab_fd);
+    bool lock_shared_on_table(Transaction *txn, int tab_fd);
 
-    bool lock_exclusive_on_table(Transaction* txn, int tab_fd);
+    bool lock_exclusive_on_table(Transaction *txn, int tab_fd);
 
-    bool lock_IS_on_table(Transaction* txn, int tab_fd);
+    bool lock_IS_on_table(Transaction *txn, int tab_fd);
 
-    bool lock_IX_on_table(Transaction* txn, int tab_fd);
+    bool lock_IX_on_table(Transaction *txn, int tab_fd);
 
-    bool unlock(Transaction* txn, LockDataId lock_data_id);
+    bool unlock(Transaction *txn, LockDataId lock_data_id);
 
 private:
-    std::mutex latch_;      // 用于锁表的并发
-    std::unordered_map<LockDataId, LockRequestQueue> lock_table_;   // 全局锁表
+    std::mutex latch_;  // 控制表锁的并发
+    std::unordered_map<LockDataId, LockRequestQueue> lock_table_;  // 全局锁表
+
+    // 加锁检查
+    bool lock_check(Transaction *txn);
+
+    // 释放锁检查
+    bool unlock_check(Transaction *txn);
 };

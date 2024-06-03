@@ -54,7 +54,24 @@ public:
                 auto lhsCol = tab_.get_col(setClauses.lhs.col_name);
                 memcpy(newRecord + lhsCol->offset, setClauses.rhs.raw->data, lhsCol->len);
             }
+
+            // --- 事务开始 ---
+            RmRecord beforeUpdateRecord(rec->size);
+            RmRecord afterUpdateRecord(rec->size);
+
             fh_->update_record(rid, newRecord, context_);
+
+            memcpy(afterUpdateRecord.data, rec->data, rec->size);
+            auto *writeRecord = new TableWriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, afterUpdateRecord);
+            context_->txn_->append_table_write_record(writeRecord);
+
+            Transaction *txn = context_->txn_;
+            UpdateLogRecord *update_log_ = new UpdateLogRecord(txn->get_transaction_id(), beforeUpdateRecord,
+                                                               afterUpdateRecord, fh_->get_file_hdr().record_size,
+                                                               newRecord, rid, tab_name_);
+            update_log_->prev_lsn_ = txn->get_prev_lsn();
+            txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(update_log_));
+            // --- 事务结束 ---
 
             // 尝试插入新索引条目
             try {
@@ -68,6 +85,9 @@ public:
                         offset += index.cols[i].len;
                     }
                     ih->insert_entry(key, rid, context_->txn_);
+
+                    auto *index_rcd = new IndexWriteRecord(WType::INSERT_TUPLE, tab_name_, rid, key, index.col_tot_len);
+                    context_->txn_->append_index_write_record(index_rcd);
                 }
             } catch (InternalError &error) {
                 // 回滚更新记录

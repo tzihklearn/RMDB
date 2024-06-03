@@ -22,15 +22,17 @@ using namespace ast;
 
 // keywords
 %token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY
-WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
+WHERE UPDATE SET SELECT INT BIGINT CHAR FLOAT DATETIME INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
 
 // type-specific tokens
 %token <sv_str> IDENTIFIER VALUE_STRING
 %token <sv_int> VALUE_INT
+%token <sv_str> VALUE_BIGINT
 %token <sv_float> VALUE_FLOAT
 %token <sv_bool> VALUE_BOOL
+%token <sv_str> VALUE_DATETIME
 
 // specify types for non-terminal symbol
 %type <sv_node> stmt dbStmt ddl dml txnStmt setStmt
@@ -108,6 +110,11 @@ dbStmt:
         SHOW TABLES
     {
         $$ = std::make_shared<ShowTables>();
+    }
+    |
+	SHOW INDEX FROM tbName
+    {
+	$$ = std::make_shared<ShowIndex>($4);
     }
     ;
 
@@ -202,6 +209,14 @@ type:
     {
         $$ = std::make_shared<TypeLen>(SV_TYPE_FLOAT, sizeof(float));
     }
+    |   BIGINT
+    {
+        $$ = std::make_shared<TypeLen>(SV_TYPE_BIGINT, sizeof(int64_t));
+    }
+    |   DATETIME
+    {
+        $$ = std::make_shared<TypeLen>(SV_TYPE_DATETIME, sizeof(uint64_t));
+    }
     ;
 
 valueList:
@@ -231,6 +246,14 @@ value:
     |   VALUE_BOOL
     {
         $$ = std::make_shared<BoolLit>($1);
+    }
+    |   VALUE_BIGINT
+    {
+        $$ = std::make_shared<BigIntLit>($1);
+    }
+    |   VALUE_DATETIME
+    {
+        $$ = std::make_shared<DateTimeLit>($1);
     }
     ;
 

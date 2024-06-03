@@ -39,27 +39,37 @@ public:
 
     std::unique_ptr<RmRecord> Next() override {
         // 遍历所有需要删除的位置
-        for (const auto &rid: rids_) {
+        for (auto &rid: rids_) {
             // 先获取原记录，索引和事务要用
             auto record = fh_->get_record(rid, context_);
+            RmRecord delete_rcd(record->size);
+            memcpy(delete_rcd.data, record->data, record->size);
             for (const auto &index: tab_.indexes) {
                 auto ih = sm_manager_->ihs_.at(
                         sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-                std::vector<char> key(index.col_tot_len);
+                char key[index.col_tot_len];
                 int offset = 0;
                 for (size_t i = 0; i < index.col_num; ++i) {
-                    memcpy(key.data() + offset, record->data + index.cols[i].offset, index.cols[i].len);
+                    memcpy(key + offset, record->data + index.cols[i].offset, index.cols[i].len);
                     offset += index.cols[i].len;
                 }
-                ih->delete_entry(key.data(), context_->txn_);
+                ih->delete_entry(key, context_->txn_);
+
+                // TODO 索引
+                auto *index_rcd = new IndexWriteRecord(WType::DELETE_TUPLE, tab_name_, rid, key, index.col_tot_len);
+                context_->txn_->append_index_write_record(index_rcd);
             }
-
-            // TODO 索引
-
             // TODO 事务
+            Transaction *txn = context_->txn_;
+            DeleteLogRecord *delete_log_ = new DeleteLogRecord(txn->get_transaction_id(), delete_rcd, rid, tab_name_);
+            delete_log_->prev_lsn_ = txn->get_prev_lsn();
+            txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(delete_log_));
 
             // 删除记录
             fh_->delete_record(rid, context_);
+
+            auto *write_record = new TableWriteRecord(WType::DELETE_TUPLE, tab_name_, rid, delete_rcd);
+            context_->txn_->append_table_write_record(write_record);
         }
         return nullptr;
     }

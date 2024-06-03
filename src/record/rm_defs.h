@@ -89,16 +89,4 @@ struct RmRecord {
         allocated_ = false;
         data = nullptr;
     }
-
-    char *getColumnValue(int offset, int length) {
-        char *result = new char[length];
-        memcpy(result, data + offset, length);
-        return result;
-    }
-
-    // 设置记录中某一列的值
-    void setColumnValue(int offset, const char *value, int length) {
-        // data 指针为记录的起始位置
-        memcpy(data + offset, value, length);
-    }
 };

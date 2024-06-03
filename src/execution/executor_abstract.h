@@ -45,7 +45,7 @@ public:
 
     virtual ColMeta get_col_offset(const TabCol &target) { return ColMeta(); };
 
-    std::vector<ColMeta>::const_iterator get_col(const std::vector<ColMeta> &rec_cols, const TabCol &target) const {
+    std::vector<ColMeta>::const_iterator get_col(const std::vector<ColMeta> &rec_cols, const TabCol &target) {
         auto pos = std::find_if(rec_cols.begin(), rec_cols.end(), [&](const ColMeta &col) {
             return col.tab_name == target.tab_name && col.name == target.col_name;
         });
@@ -57,33 +57,32 @@ public:
 
     // 从 Record 中取出某一列的 Value
     Value fetch_value(const std::unique_ptr<RmRecord> &record, const ColMeta &columnMeta) const {
-        const char *data = record->data + columnMeta.offset;
+        char *data = record->data + columnMeta.offset;
         size_t len = columnMeta.len;
         Value result;
         result.type = columnMeta.type;
-
-        switch (columnMeta.type) {
-            case TYPE_INT: {
-                int tmp;
-                memcpy(&tmp, data, sizeof(int));
-                result.set_int(tmp);
-                break;
-            }
-            case TYPE_FLOAT: {
-                float tmp;
-                memcpy(&tmp, data, sizeof(float));
-                result.set_float(tmp);
-                break;
-            }
-            case TYPE_STRING: {
-                std::string tmp(data, len);
-                result.set_str(tmp);
-                break;
-            }
-            default:
-                throw InvalidTypeError();
+        if (columnMeta.type == TYPE_INT) {
+            int tmp;
+            memcpy((char *) &tmp, data, len);
+            result.set_int(tmp);
+        } else if (columnMeta.type == TYPE_FLOAT) {
+            float tmp;
+            memcpy((char *) &tmp, data, len);
+            result.set_float(tmp);
+        } else if (columnMeta.type == TYPE_STRING) {
+            std::string tmp(data, len);
+            result.set_str(tmp);
+        } else if (columnMeta.type == TYPE_BIGINT) {
+            int64_t tmp;
+            memcpy((char *) &tmp, data, len);
+            result.set_bigint(tmp);
+        } else if (columnMeta.type == TYPE_DATETIME) {
+            uint64_t tmp;
+            memcpy((char *) &tmp, data, len);
+            result.set_datetime(tmp);
+        } else {
+            throw InvalidTypeError();
         }
-
         result.init_raw(len);
         return result;
     }

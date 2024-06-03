@@ -27,24 +27,24 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
                 throw TableNotFoundError(table);
             }
         }
-        // 处理target list，再target list中添加上表名，例如 a.id
-        for (auto &sv_sel_col: x->cols) {
-            TabCol sel_col = {.tab_name = sv_sel_col->tab_name, .col_name = sv_sel_col->col_name};
-            query->cols.push_back(sel_col);
+
+        for (auto &selColumn: x->cols) {
+            TabCol selCol = {.tab_name = selColumn->tab_name, .col_name = selColumn->col_name};
+            query->cols.push_back(selCol);
         }
 
-        std::vector<ColMeta> all_cols;
-        get_all_cols(query->tables, all_cols);
+        std::vector<ColMeta> allColumns;
+        get_all_cols(query->tables, allColumns);
         if (query->cols.empty()) {
             // select all columns
-            for (auto &col: all_cols) {
-                TabCol sel_col = {.tab_name = col.tab_name, .col_name = col.name};
-                query->cols.push_back(sel_col);
+            for (auto &column: allColumns) {
+                TabCol selColumn = {.tab_name = column.tab_name, .col_name = column.name};
+                query->cols.push_back(selColumn);
             }
         } else {
             // infer table name from column name
-            for (auto &sel_col: query->cols) {
-                sel_col = check_column(all_cols, sel_col);  // 列元数据校验
+            for (auto &selColumn: query->cols) {
+                selColumn = check_column(allColumns, selColumn);  // 列元数据校验
             }
         }
         //处理where条件
@@ -57,17 +57,38 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         // 获取query->set_clauses
         for (auto &clause: x->set_clauses) {
             SetClause setClause;
+
             TabCol selColumn = {.tab_name = tableName, .col_name = clause->col_name};
             setClause.lhs = selColumn;
 
             ColMeta columnMeta = *(tableMeta.get_col(selColumn.col_name));
             auto value = convert_sv_value(clause->val);
 
-            // 列是 float，新值是 int，需要做一个转换
-            if (columnMeta.type == TYPE_FLOAT && value.type == TYPE_INT) {
-                value.set_float(value.int_val);
+            // 列类型为int，新值类型是 bigint，直接抛异常
+            if (columnMeta.type == TYPE_INT && value.type == TYPE_BIGINT) {
+                throw TypeOverflowError("INT", std::to_string(value.bigint_val));
             }
 
+            // 列类型是 int，新值类型是 bigint，需要做一个转换
+            if (columnMeta.type == TYPE_BIGINT && value.type == TYPE_INT) {
+                Value tmp;
+                tmp.set_bigint(value.int_val);
+                value = tmp;
+            }
+
+            // 列类型是 float，新值类型是 int，需要做一个转换
+            if (columnMeta.type == TYPE_FLOAT && value.type == TYPE_INT) {
+                Value tmp;
+                tmp.set_float(value.int_val);
+                value = tmp;
+            }
+
+            // 列类型char(19+)，新值类型是datetime，需要做一个转换：datetime -> char(19+)
+            if (columnMeta.type == TYPE_STRING && value.type == TYPE_DATETIME) {
+                Value tmp;
+                tmp.set_str(value.datetime_val.encode_to_string());
+                value = tmp;
+            }
             setClause.rhs = value;
             switch (setClause.rhs.type) {
                 case TYPE_INT:
@@ -78,6 +99,12 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
                     break;
                 case TYPE_STRING:
                     setClause.rhs.init_raw(columnMeta.len);
+                    break;
+                case TYPE_BIGINT:
+                    setClause.rhs.init_raw(sizeof(int64_t));
+                    break;
+                case TYPE_DATETIME:
+                    setClause.rhs.init_raw(sizeof(uint64_t));
                     break;
             }
             std::cout << setClause.rhs.raw->data << std::endl;
@@ -91,9 +118,33 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         get_clause(x->conds, query->conds);
         check_clause({x->tab_name}, query->conds);
     } else if (auto x = std::dynamic_pointer_cast<ast::InsertStmt>(parse)) {
-        // 处理insert 的values值
-        for (auto &sv_val: x->vals) {
-            query->values.push_back(convert_sv_value(sv_val));
+        std::vector<ColMeta> columnMetas;
+        get_all_cols({x->tab_name}, columnMetas);
+        for (size_t i = 0; i < x->vals.size(); i++) {
+            auto value = convert_sv_value(x->vals[i]);
+            // 列为int，新值是 bigint，直接抛异常
+            if (columnMetas[i].type == TYPE_INT && value.type == TYPE_BIGINT) {
+                throw TypeOverflowError("INT", std::to_string(value.bigint_val));
+            }
+            // 列与新值类型不匹配的话可以做个转换
+            if (columnMetas[i].type == TYPE_BIGINT && value.type == TYPE_INT) {
+                Value tmp;
+                tmp.set_bigint(value.int_val);
+                query->values.push_back(tmp);
+            } else if (columnMetas[i].type == TYPE_STRING && value.type == TYPE_DATETIME) {
+                Value tmp;
+                tmp.set_str(value.datetime_val.encode_to_string());
+                query->values.push_back(tmp);
+            } else if (columnMetas[i].type == TYPE_STRING && value.type == TYPE_DATETIME) {
+                Value tmp;
+                tmp.set_str(value.datetime_val.encode_to_string());
+                query->values.push_back(tmp);
+            } else if (columnMetas[i].type == TYPE_FLOAT && value.type == TYPE_INT) {
+                Value tmp;
+                tmp.set_float(value.int_val);
+            } else {
+                query->values.push_back(value);
+            }
         }
     } else {
         // do nothing
@@ -101,7 +152,6 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
     query->parse = std::move(parse);
     return query;
 }
-
 
 TabCol Analyze::check_column(const std::vector<ColMeta> &all_cols, TabCol target) {
     if (target.tab_name.empty()) {
@@ -175,6 +225,27 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
         ColType lhs_type = lhs_col->type;
         ColType rhs_type;
         if (cond.is_rhs_val) {
+            // 列为int，新值是 bigint，直接抛异常
+            if (lhs_col->type == TYPE_INT && cond.rhs_val.type == TYPE_BIGINT) {
+                throw TypeOverflowError("INT", std::to_string(cond.rhs_val.bigint_val));
+            }
+            // 列与新值类型不匹配的话可以做个转换
+            if (lhs_col->type == TYPE_BIGINT && cond.rhs_val.type == TYPE_INT) {
+                Value tmp;
+                tmp.set_bigint(cond.rhs_val.int_val);
+                cond.rhs_val = tmp;
+            } else if (lhs_col->type == TYPE_STRING && cond.rhs_val.type == TYPE_DATETIME) {
+                Value tmp;
+                tmp.set_datetime(cond.rhs_val.datetime_val.encode_to_string());
+                cond.rhs_val = tmp;
+            } else if (lhs_col->type == TYPE_STRING && cond.rhs_val.type == TYPE_DATETIME) {
+                Value tmp;
+                tmp.set_datetime(cond.rhs_val.datetime_val.encode_to_string());
+                cond.rhs_val = tmp;
+            } else if (lhs_col->type == TYPE_FLOAT && cond.rhs_val.type == TYPE_INT) {
+                Value tmp;
+                tmp.set_float(cond.rhs_val.int_val);
+            }
             cond.rhs_val.init_raw(lhs_col->len);
             rhs_type = cond.rhs_val.type;
         } else {
@@ -188,7 +259,6 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
     }
 }
 
-
 Value Analyze::convert_sv_value(const std::shared_ptr<ast::Value> &sv_val) {
     Value val;
     if (auto int_lit = std::dynamic_pointer_cast<ast::IntLit>(sv_val)) {
@@ -197,6 +267,10 @@ Value Analyze::convert_sv_value(const std::shared_ptr<ast::Value> &sv_val) {
         val.set_float(float_lit->val);
     } else if (auto str_lit = std::dynamic_pointer_cast<ast::StringLit>(sv_val)) {
         val.set_str(str_lit->val);
+    } else if (auto bigint_lit = std::dynamic_pointer_cast<ast::BigIntLit>(sv_val)) {
+        val.set_bigint(bigint_lit->val);
+    } else if (auto datetime_lit = std::dynamic_pointer_cast<ast::DateTimeLit>(sv_val)) {
+        val.set_datetime(datetime_lit->val);
     } else {
         throw InternalError("Unexpected sv value type");
     }
