@@ -49,99 +49,6 @@ struct OrderByColumn {
     bool isDesc;
 };
 
-
-struct DateTime {
-    int year;
-    int month;
-    int day;
-    int hour;
-    int minute;
-    int second;
-
-    uint64_t encode() const {
-        uint64_t ret = 0;
-        ret |= static_cast<uint64_t>(year) << 40;
-        ret |= static_cast<uint64_t>(month) << 32;
-        ret |= static_cast<uint64_t>(day) << 24;
-        ret |= static_cast<uint64_t>(hour) << 16;
-        ret |= static_cast<uint64_t>(minute) << 8;
-        ret |= static_cast<uint64_t>(second);
-        return ret;
-    }
-
-    void decode(uint64_t code) {
-        year = static_cast<int>((code >> 40) & 0xFFFF);
-        month = static_cast<int>((code >> 32) & 0xFF);
-        day = static_cast<int>((code >> 24) & 0xFF);
-        hour = static_cast<int>((code >> 16) & 0xFF);
-        minute = static_cast<int>((code >> 8) & 0xFF);
-        second = static_cast<int>(code & 0xFF);
-    }
-
-    std::string encode_to_string() const {
-        std::ostringstream oss;
-        oss << year << "-";
-
-        if (month < 10) {
-            oss << "0";
-        }
-        oss << month << "-";
-
-        if (day < 10) {
-            oss << "0";
-        }
-        oss << day << " ";
-
-        if (hour < 10) {
-            oss << "0";
-        }
-        oss << hour << ":";
-
-        if (minute < 10) {
-            oss << "0";
-        }
-        oss << minute << ":";
-
-        if (second < 10) {
-            oss << "0";
-        }
-        oss << second;
-
-        return oss.str();
-    }
-
-    void decode_from_string(const std::string &datetime_str) {
-        std::istringstream iss(datetime_str);
-        char delimiter;
-        iss >> year >> delimiter >> month >> delimiter >> day >> hour >> delimiter >> minute >> delimiter >> second;
-    }
-
-    // 重载 > 运算符
-    bool operator>(const DateTime &rhs) const {
-        return encode() > rhs.encode();
-    }
-
-    // 重载 < 运算符
-    bool operator<(const DateTime &rhs) const {
-        return encode() < rhs.encode();
-    }
-
-    // 重载 == 运算符
-    bool operator==(const DateTime &rhs) const {
-        return encode() == rhs.encode();
-    }
-
-    // 重载 >= 运算符
-    bool operator>=(const DateTime &rhs) const {
-        return encode() >= rhs.encode();
-    }
-
-    // 重载 <= 运算符
-    bool operator<=(const DateTime &rhs) const {
-        return encode() <= rhs.encode();
-    }
-};
-
 struct Value {
     ColType type;  // type of value
     union {
@@ -149,11 +56,7 @@ struct Value {
         float float_val;  // float value
     };
 
-    int64_t bigint_val;   // bigint value
-
     std::string str_val;  // string value
-
-    DateTime datetime_val; // datetime value
 
     std::shared_ptr<RmRecord> raw;  // raw record buffer
 
@@ -175,42 +78,6 @@ struct Value {
     void set_str(std::string str_val_) {
         type = TYPE_STRING;
         str_val = std::move(str_val_);
-    }
-
-    void set_bigint(int intVal) {
-        type = TYPE_BIGINT;
-        bigint_val = intVal;
-    }
-
-    // 这里要多重置一个初始化函数，不然会出问题
-    void set_bigint(int64_t bigintVal) {
-        type = TYPE_BIGINT;
-        bigint_val = bigintVal;
-    }
-
-    void set_bigint(const std::string &bigintVal) {
-        type = TYPE_BIGINT;
-        try {
-            bigint_val = std::stoll(bigintVal);
-        } catch (std::out_of_range const &ex) {
-            throw TypeOverflowError("BIGINT", bigintVal);
-        }
-    }
-
-    void set_datetime(const std::string &datetime_str) {
-        type = TYPE_DATETIME;
-        datetime_val.decode_from_string(datetime_str);
-        if (!check_datetime(datetime_val)) {
-            throw TypeOverflowError("DateTime", datetime_str);
-        }
-    }
-
-    void set_datetime(uint64_t datetime) {
-        type = TYPE_DATETIME;
-        datetime_val.decode(datetime);
-        if (!check_datetime(datetime_val)) {
-            throw TypeOverflowError("DateTime", datetime_val.encode_to_string());
-        }
     }
 
     void init_raw(int len) {
@@ -235,17 +102,6 @@ struct Value {
                 memcpy(raw->data, str_val.c_str(), str_val.size());
                 break;
             }
-            case TYPE_BIGINT: {
-                assert(len == sizeof(int64_t));
-                *(int64_t *) (raw->data) = bigint_val;
-                break;
-            }
-            case TYPE_DATETIME: {
-                assert(len == sizeof(uint64_t));
-                uint64_t code = datetime_val.encode();
-                *(uint64_t *) (raw->data) = code;
-                break;
-            }
             default: {
                 throw InvalidTypeError();
                 break;
@@ -265,8 +121,6 @@ struct Value {
                     return int_val > rhs.int_val;
                 } else if (rhs.type == TYPE_FLOAT) {
                     return int_val > rhs.float_val;
-                } else if (rhs.type == TYPE_BIGINT) {
-                    return int_val > rhs.bigint_val;
                 }
             case TYPE_FLOAT:
                 if (rhs.type == TYPE_INT) {
@@ -276,14 +130,6 @@ struct Value {
                 }
             case TYPE_STRING:
                 return strcmp(str_val.c_str(), rhs.str_val.c_str()) > 0;
-            case TYPE_BIGINT:
-                if (rhs.type == TYPE_BIGINT) {
-                    return bigint_val > rhs.bigint_val;
-                } else if (rhs.type == TYPE_INT) {
-                    return bigint_val > rhs.int_val;
-                }
-            case TYPE_DATETIME:
-                return datetime_val > rhs.datetime_val;
         }
         throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
     }
@@ -299,8 +145,6 @@ struct Value {
                     return int_val < rhs.int_val;
                 } else if (rhs.type == TYPE_FLOAT) {
                     return int_val < rhs.float_val;
-                } else if (rhs.type == TYPE_BIGINT) {
-                    return int_val < rhs.bigint_val;
                 }
             case TYPE_FLOAT:
                 if (rhs.type == TYPE_INT) {
@@ -310,14 +154,6 @@ struct Value {
                 }
             case TYPE_STRING:
                 return strcmp(str_val.c_str(), rhs.str_val.c_str()) < 0;
-            case TYPE_BIGINT:
-                if (rhs.type == TYPE_BIGINT) {
-                    return bigint_val < rhs.bigint_val;
-                } else if (rhs.type == TYPE_INT) {
-                    return bigint_val < rhs.int_val;
-                }
-            case TYPE_DATETIME:
-                return datetime_val < rhs.datetime_val;
         }
 
         throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
@@ -334,8 +170,6 @@ struct Value {
                     return int_val == rhs.int_val;
                 } else if (rhs.type == TYPE_FLOAT) {
                     return int_val == rhs.float_val;
-                } else if (rhs.type == TYPE_BIGINT) {
-                    return int_val == rhs.bigint_val;
                 }
             case TYPE_FLOAT:
                 if (rhs.type == TYPE_INT) {
@@ -345,14 +179,6 @@ struct Value {
                 }
             case TYPE_STRING:
                 return strcmp(str_val.c_str(), rhs.str_val.c_str()) == 0;
-            case TYPE_BIGINT:
-                if (rhs.type == TYPE_BIGINT) {
-                    return bigint_val == rhs.bigint_val;
-                } else if (rhs.type == TYPE_INT) {
-                    return bigint_val == rhs.int_val;
-                }
-            case TYPE_DATETIME:
-                return datetime_val == rhs.datetime_val;
         }
 
         throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
@@ -373,8 +199,6 @@ struct Value {
                     return int_val >= rhs.int_val;
                 } else if (rhs.type == TYPE_FLOAT) {
                     return int_val >= rhs.float_val;
-                } else if (rhs.type == TYPE_BIGINT) {
-                    return int_val >= rhs.bigint_val;
                 }
             case TYPE_FLOAT:
                 if (rhs.type == TYPE_INT) {
@@ -384,14 +208,6 @@ struct Value {
                 }
             case TYPE_STRING:
                 return strcmp(str_val.c_str(), rhs.str_val.c_str()) >= 0;
-            case TYPE_BIGINT:
-                if (rhs.type == TYPE_BIGINT) {
-                    return bigint_val >= rhs.bigint_val;
-                } else if (rhs.type == TYPE_INT) {
-                    return bigint_val >= rhs.int_val;
-                }
-            case TYPE_DATETIME:
-                return datetime_val >= rhs.datetime_val;
         }
 
         throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
@@ -408,8 +224,6 @@ struct Value {
                     return int_val <= rhs.int_val;
                 } else if (rhs.type == TYPE_FLOAT) {
                     return int_val <= rhs.float_val;
-                } else if (rhs.type == TYPE_BIGINT) {
-                    return int_val <= rhs.bigint_val;
                 }
             case TYPE_FLOAT:
                 if (rhs.type == TYPE_INT) {
@@ -419,76 +233,10 @@ struct Value {
                 }
             case TYPE_STRING:
                 return strcmp(str_val.c_str(), rhs.str_val.c_str()) <= 0;
-            case TYPE_BIGINT:
-                if (rhs.type == TYPE_BIGINT) {
-                    return bigint_val <= rhs.bigint_val;
-                } else if (rhs.type == TYPE_INT) {
-                    return bigint_val <= rhs.int_val;
-                }
-            case TYPE_DATETIME:
-                return datetime_val <= rhs.datetime_val;
         }
 
         throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
     }
-
-    bool check_datetime(const DateTime &datetime) {
-        // check year
-        if (datetime.year < 1000 || datetime.year > 9999) {
-            return false;
-        }
-        // check month
-        if (datetime.month < 1 || datetime.month > 12) {
-            return false;
-        }
-        // check day
-        // check day
-        int maxDay;
-        switch (datetime.month) {
-            case 1:
-            case 3:
-            case 5:
-            case 7:
-            case 8:
-            case 10:
-            case 12:
-                maxDay = 31;
-                break;
-            case 4:
-            case 6:
-            case 9:
-            case 11:
-                maxDay = 30;
-                break;
-            case 2:
-                if ((datetime.year % 4 == 0 && datetime.year % 100 != 0) || datetime.year % 400 == 0) {
-                    maxDay = 29;
-                } else {
-                    maxDay = 28;
-                }
-                break;
-            default:
-                return false;
-        }
-        if (datetime.day < 1 || datetime.day > maxDay) {
-            return false;
-        }
-
-        if (datetime.hour < 0 || datetime.hour > 23) {
-            return false;
-        }
-
-        if (datetime.minute < 0 || datetime.minute > 59) {
-            return false;
-        }
-
-        if (datetime.second < 0 || datetime.second > 59) {
-            return false;
-        }
-
-        return true;
-    }
-
 };
 
 enum CompOp {

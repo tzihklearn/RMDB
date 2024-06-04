@@ -40,7 +40,7 @@ struct Rid {
 };
 
 enum ColType {
-    TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_BIGINT, TYPE_DATETIME
+    TYPE_INT, TYPE_FLOAT, TYPE_STRING
 };
 
 inline std::string coltype2str(ColType type) {
@@ -48,8 +48,6 @@ inline std::string coltype2str(ColType type) {
             {TYPE_INT,      "INT"},
             {TYPE_FLOAT,    "FLOAT"},
             {TYPE_STRING,   "STRING"},
-            {TYPE_BIGINT,   "BIGINT"},
-            {TYPE_DATETIME, "DATETIME"}
     };
     return m.at(type);
 }
@@ -57,8 +55,6 @@ inline std::string coltype2str(ColType type) {
 // 判断两列的数据类型是否能够比较
 inline bool checkType(ColType lhs, ColType rhs) {
     if ((lhs == TYPE_INT && rhs == TYPE_FLOAT) || (lhs == TYPE_FLOAT && rhs == TYPE_INT)) {
-        return true;
-    } else if ((lhs == TYPE_INT && rhs == TYPE_BIGINT) || (lhs == TYPE_BIGINT && rhs == TYPE_INT)) {
         return true;
     } else {
         return lhs == rhs;

@@ -177,9 +177,3 @@ class InvalidTypeError : public RMDBError {
     InvalidTypeError()
         : RMDBError("Invalid Type Error: Cannot convert to record") {}
 };
-
-class TypeOverflowError : public RMDBError {
-    public:
-    TypeOverflowError(const std::string &type, const std::string &bigint_val)
-        : RMDBError(type + " OVERFLOW: " + bigint_val) {}
-};

@@ -38,14 +38,6 @@ inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
         }
         case TYPE_STRING:
             return memcmp(a, b, col_len);
-        case TYPE_DATETIME: {
-            uint64_t date_a = *(uint64_t *) a;
-            uint64_t date_b = *(uint64_t *) b;
-            return (date_a < date_b) ? -1 : ((date_a > date_b) ? 1 : 0);
-        }
-        case TYPE_BIGINT : {
-            throw RMDBError("Unexpected data type");
-        }
         default:
             throw InternalError("Unexpected data type");
     }

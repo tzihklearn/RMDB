@@ -109,16 +109,6 @@ public:
                     tmp_min.init_raw(col.len);
                     break;
                 }
-                case TYPE_DATETIME : {
-                    tmp_max.set_datetime(std::string("9999-12-31 23:59:59"));
-                    tmp_max.init_raw(col.len);
-                    tmp_min.set_datetime(std::string("1000-01-01 00:00:00"));
-                    tmp_min.init_raw(col.len);
-                    break;
-                }
-                case TYPE_BIGINT : {
-                    throw RMDBError("Unsupported type");
-                }
                 default: {
                     throw InvalidTypeError();
                 }

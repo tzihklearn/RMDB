@@ -166,18 +166,6 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
                     col_str.resize(strlen(col_str.c_str()));
                     break;
                 }
-                case TYPE_BIGINT: {
-                    col_str = std::to_string(*(int64_t *) rec_buf);
-                    break;
-                }
-                case TYPE_DATETIME: {
-                    uint64_t raw;
-                    memcpy((char *) &raw, rec_buf, sizeof(raw));
-                    DateTime dt{};
-                    dt.decode(raw);
-                    col_str = dt.encode_to_string();
-                    break;
-                }
                 default: {
                     throw InvalidTypeError();
                 }
