@@ -19,7 +19,7 @@ enum JoinType {
 namespace ast {
 
 enum SvType {
-    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BOOL, SV_TYPE_BIGINT, SV_TYPE_DATETIME
+    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BOOL
 };
 
 enum SvCompOp {
@@ -130,12 +130,6 @@ struct IntLit : public Value {
     IntLit(int val_) : val(val_) {}
 };
 
-struct BigIntLit : public Value {
-    std::string val;
-
-    BigIntLit(std::string val_) : val(val_) {}
-};
-
 struct FloatLit : public Value {
     float val;
 
@@ -146,12 +140,6 @@ struct StringLit : public Value {
     std::string val;
 
     StringLit(std::string val_) : val(std::move(val_)) {}
-};
-
-struct DateTimeLit : public Value {
-    std::string val;
-
-    DateTimeLit(std::string val_) : val(std::move(val_)) {}
 };
 
 struct BoolLit : public Value {

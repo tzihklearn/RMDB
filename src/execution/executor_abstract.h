@@ -72,14 +72,6 @@ public:
         } else if (columnMeta.type == TYPE_STRING) {
             std::string tmp(data, len);
             result.set_str(tmp);
-        } else if (columnMeta.type == TYPE_BIGINT) {
-            int64_t tmp;
-            memcpy((char *) &tmp, data, len);
-            result.set_bigint(tmp);
-        } else if (columnMeta.type == TYPE_DATETIME) {
-            uint64_t tmp;
-            memcpy((char *) &tmp, data, len);
-            result.set_datetime(tmp);
         } else {
             throw InvalidTypeError();
         }
