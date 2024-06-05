@@ -102,6 +102,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
             if (columnMetas[i].type == TYPE_FLOAT && value.type == TYPE_INT) {
                 Value tmp;
                 tmp.set_float(value.int_val);
+                query->values.push_back(tmp);
             } else {
                 query->values.push_back(value);
             }
