@@ -67,7 +67,7 @@ void TransactionManager::commit(Transaction *txn, LogManager *log_manager) {
     while (!index_write_set->empty()) {
         auto index_write_rcd = index_write_set->back();
         index_write_set->pop_back();
-        delete index_write_rcd; // 避免内存泄露
+//        delete index_write_rcd; // 避免内存泄露
     }
 
     // 2. 释放所有锁
