@@ -96,15 +96,12 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
     // 死锁预防
     std::scoped_lock lock(latch_);
 
-    // 创建上下文
-    Context context(lock_manager_, log_manager, txn);
-
     // 1. 回滚所有写操作
     auto table_write_set = txn->get_table_write_set();
+    Context context(lock_manager_, log_manager, txn);
     while (!table_write_set->empty()) {
         auto write_rcd = table_write_set->back();
         auto &rm_file_hdl = sm_manager_->fhs_.at(write_rcd->GetTableName());
-
         switch (write_rcd->GetWriteType()) {
             case WType::INSERT_TUPLE: {
                 rm_file_hdl->delete_record(write_rcd->GetRid(), &context);
@@ -115,54 +112,58 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
                 break;
             }
             case WType::UPDATE_TUPLE: {
-                rm_file_hdl->update_record(write_rcd->GetRid(), write_rcd->GetRecord().data, &context);
+                // 获取更新前的记录并恢复
+                auto before_update_record = write_rcd->GetBeforeRecord();
+                rm_file_hdl->update_record(write_rcd->GetRid(), before_update_record.data, &context);
                 break;
             }
         }
         table_write_set->pop_back();
         delete write_rcd; // 避免内存泄露
     }
+    table_write_set->clear();
 
+    // 2. 回滚所有索引写操作
     auto index_write_set = txn->get_index_write_set();
     while (!index_write_set->empty()) {
         auto index_write_rcd = index_write_set->back();
         std::string table_name = index_write_rcd->GetTableName();
+        auto tabs = sm_manager_->db_.get_table(table_name);
         auto indexes = sm_manager_->db_.get_table(table_name).indexes;
-
-        switch (index_write_rcd->GetWriteType()) {
-            case WType::INSERT_TUPLE: {
-                for (auto &index: indexes) {
-                    auto ih = sm_manager_->ihs_.at(
-                            sm_manager_->get_ix_manager()->get_index_name(table_name, index.cols)).get();
+        for (auto &index: indexes) {
+            auto ih = sm_manager_->ihs_.at(
+                    sm_manager_->get_ix_manager()->get_index_name(table_name, index.cols)).get();
+            switch (index_write_rcd->GetWriteType()) {
+                case WType::INSERT_TUPLE: {
                     ih->delete_entry(index_write_rcd->GetKey(), txn);
+                    break;
                 }
-                break;
-            }
-            case WType::DELETE_TUPLE: {
-                for (auto &index: indexes) {
-                    auto ih = sm_manager_->ihs_.at(
-                            sm_manager_->get_ix_manager()->get_index_name(table_name, index.cols)).get();
+                case WType::DELETE_TUPLE: {
                     ih->insert_entry(index_write_rcd->GetKey(), index_write_rcd->GetRid(), txn);
+                    break;
                 }
-                break;
+                case WType::UPDATE_TUPLE: {
+                    ih->delete_entry(index_write_rcd->GetNewKey(), txn);
+                    ih->insert_entry(index_write_rcd->GetOldKey(), index_write_rcd->GetRid(), txn);
+                    break;
+                }
             }
-            case WType::UPDATE_TUPLE:
-                // 更新操作需要特定的回滚逻辑，这里省略
-                break;
         }
         index_write_set->pop_back();
         delete index_write_rcd; // 避免内存泄露
     }
+    index_write_set->clear();
 
-    // 事务abort之后释放所有锁
-    for (auto const &lock: *(txn->get_lock_set())) {
+    // 3. 事务abort之后释放所有锁
+    for (const auto &lock: *(txn->get_lock_set())) {
         lock_manager_->unlock(txn, lock);
     }
 
-    // 写入Abort日志记录
-    AbortLogRecord abort_log(txn->get_transaction_id());
-    abort_log.prev_lsn_ = txn->get_prev_lsn();
-    txn->set_prev_lsn(log_manager->flush_log_to_disk(&abort_log));
+    // 4. 写入abort日志
+    auto *abort_log = new AbortLogRecord(txn->get_transaction_id());
+    abort_log->prev_lsn_ = txn->get_prev_lsn();
+    txn->set_prev_lsn(log_manager->flush_log_to_disk(abort_log));
+    delete abort_log;
 
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
