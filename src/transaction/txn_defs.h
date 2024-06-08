@@ -50,9 +50,14 @@ public:
     TableWriteRecord(WType wtype, const std::string &tab_name, const Rid &rid)
             : wtype_(wtype), tab_name_(tab_name), rid_(rid) {}
 
-    // constructor for delete & update operation
+    // constructor for delete operation
     TableWriteRecord(WType wtype, const std::string &tab_name, const Rid &rid, const RmRecord &record)
             : wtype_(wtype), tab_name_(tab_name), rid_(rid), record_(record) {}
+
+    // constructor for update operation
+    TableWriteRecord(WType wtype, const std::string &tab_name, const Rid &rid, const RmRecord &before_record,
+                     const RmRecord &record)
+            : wtype_(wtype), tab_name_(tab_name), rid_(rid), before_record_(before_record), record_(record) {}
 
     ~TableWriteRecord() = default;
 
@@ -64,10 +69,13 @@ public:
 
     inline std::string &GetTableName() { return tab_name_; }
 
+    inline RmRecord &GetBeforeRecord() { return before_record_; }
+
 private:
     WType wtype_;
     std::string tab_name_;
     Rid rid_;
+    RmRecord before_record_;  // 新增成员变量，用于存储更新前的记录
     RmRecord record_;
 };
 
@@ -81,14 +89,27 @@ public:
         memcpy(key_, key, size);
     }
 
-    ~IndexWriteRecord() {
-        delete key_;
+    // Constructor for update operations
+    IndexWriteRecord(WType wtype, const std::string &tab_name, const Rid &rid, const char *old_key, const char *new_key,
+                     int size)
+            : wType(wtype), tab_name_(tab_name), rid_(rid) {
+        old_key_ = new char[size];
+        new_key_ = new char[size];
+        memcpy(old_key_, old_key, size);
+        memcpy(new_key_, new_key, size);
     }
 
+    ~IndexWriteRecord() {
+        delete[] key_;
+        delete[] old_key_;
+        delete[] new_key_;
+    }
 
-    inline RmRecord &GetRecord() { return record_; }
+    inline char *GetKey() { return key_; }
 
-    inline char *&GetKey() { return key_; }
+    inline char *GetOldKey() { return old_key_; }
+
+    inline char *GetNewKey() { return new_key_; }
 
     inline Rid &GetRid() { return rid_; }
 
@@ -96,13 +117,13 @@ public:
 
     inline std::string &GetTableName() { return tab_name_; }
 
-
 private:
     WType wType;
     std::string tab_name_;
     Rid rid_;
-    char *key_;
-    RmRecord record_;
+    char *key_ = nullptr;
+    char *old_key_ = nullptr;
+    char *new_key_ = nullptr;
 };
 
 /* 多粒度锁，加锁对象的类型，包括记录和表 */
