@@ -22,14 +22,15 @@ See the Mulan PSL v2 for more details. */
 #include "plan.h"
 
 class Optimizer {
-private:
+   private:
     SmManager *sm_manager_;
     Planner *planner_;
 
-public:
-    Optimizer(SmManager *sm_manager, Planner *planner)
-            : sm_manager_(sm_manager), planner_(planner) {}
-
+   public:
+    Optimizer(SmManager *sm_manager,  Planner *planner) 
+        : sm_manager_(sm_manager),  planner_(planner)
+        {}
+    
     std::shared_ptr<Plan> plan_query(std::shared_ptr<Query> query, Context *context) {
         if (auto x = std::dynamic_pointer_cast<ast::Help>(query->parse)) {
             // help;
@@ -55,8 +56,15 @@ public:
         } else if (auto x = std::dynamic_pointer_cast<ast::TxnRollback>(query->parse)) {
             // rollback;
             return std::make_shared<OtherPlan>(T_Transaction_Rollback, std::string());
+        } else if (auto x = std::dynamic_pointer_cast<ast::SetStmt>(query->parse)) {
+            // Set Knob Plan
+            return std::make_shared<SetKnobPlan>(x->set_knob_type_, x->bool_val_);
+        } else if (auto x = std::dynamic_pointer_cast<ast::SetStmt>(query->parse)) {
+            // Set Knob Plan
+            return std::make_shared<SetKnobPlan>(x->set_knob_type_, x->bool_val_);
         } else {
             return planner_->do_planner(query, context);
         }
     }
+
 };

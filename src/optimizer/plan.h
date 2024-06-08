@@ -51,7 +51,9 @@ typedef enum PlanTag {
     // 执行计划
     T_Projection,
     // 其他
-    T_SetKnob
+    T_SetKnob,
+    // 聚合函数
+    T_SvAggregate
 } PlanTag;
 
 // 查询执行计划
@@ -162,8 +164,15 @@ public:
     std::vector<Value> values_;
     std::vector<Condition> conds_;
     std::vector<SetClause> set_clauses_;
-};
+    // 聚合函数Mete
+    std::vector<AggregateMeta> aggregationMetas_;
+    // group by
+    std::shared_ptr<GroupByMete> group_by_col_;
 
+    // 聚合函数输出列
+    // 聚合函数支持as语法
+    std::vector<TabCol> output_col_;
+};
 // ddl语句, 包括create/drop table; create/drop index;
 class DDLPlan : public Plan {
 public:

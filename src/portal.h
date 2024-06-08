@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "execution/executor_delete.h"
 #include "execution/execution_sort.h"
 #include "common/common.h"
+#include "execution/execution_aggregation.h"
 
 typedef enum portalTag {
     PORTAL_Invalid_Query = 0,
@@ -108,6 +109,26 @@ public:
 
                     return std::make_shared<PortalStmt>(PORTAL_DML_WITHOUT_SELECT, std::vector<TabCol>(),
                                                         std::move(root), plan);
+                }
+                case T_SvAggregate: {
+                    // 转为SeqScanExecutor
+                    std::unique_ptr<AbstractExecutor> scan = convert_plan_executor(x->subplan_, context);
+
+                    // 进行扫描，获取所有的rid
+                    std::vector<Rid> rids;
+                    for (scan->beginTuple(); !scan->is_end(); scan->nextTuple()) {
+                        rids.push_back(scan->rid());
+                    }
+
+                    std::unique_ptr<AbstractExecutor> root = std::make_unique<AggregationExecutor>(sm_manager_,
+                                                                                                   x->tab_name_,
+                                                                                                   x->conds_,
+                                                                                                   x->aggregationMetas_,
+                                                                                                   x->group_by_col_,
+                                                                                                   rids, context);
+                    // 返回一个select的算子
+                    return std::make_shared<PortalStmt>(PORTAL_ONE_SELECT, std::move(x->output_col_), std::move(root),
+                                                        plan);
                 }
                 default:
                     throw InternalError("Unexpected field type");

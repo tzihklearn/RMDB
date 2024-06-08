@@ -34,16 +34,6 @@ struct TabCol {
     }
 };
 
-enum AggregationOp {
-    AG_COUNT, AG_SUM, AG_MAX, AG_MIN
-};
-
-struct AggregationMeta {
-    AggregationOp op;
-    TabCol tableColumn;
-};
-
-
 struct OrderByColumn {
     TabCol tableColumn;
     bool isDesc;
@@ -254,4 +244,32 @@ struct Condition {
 struct SetClause {
     TabCol lhs;
     Value rhs;
+};
+
+enum AggregateOp {
+    AG_COUNT, AG_SUM, AG_MAX, AG_MIN, AG_NULL
+};
+
+struct AggregateMeta {
+    AggregateOp op;
+    TabCol table_column;
+
+    AggregateMeta(AggregateOp op_, TabCol table_column_) : op(op_), table_column(std::move(table_column_)) {};
+
+};
+
+struct HavingMete {
+    AggregateMeta lhs;
+    CompOp op;
+    Value rhs_val;
+
+    HavingMete(AggregateMeta lhs_, CompOp op_, Value rhs_val_) : lhs(std::move(lhs_)), op(op_), rhs_val(std::move(rhs_val_)) {};
+};
+
+struct GroupByMete {
+    TabCol tab_col;
+    std::vector<HavingMete> having_metes;
+
+    GroupByMete(TabCol tab_col_, std::vector<HavingMete> having_metes_) : tab_col(std::move(tab_col_)),
+                                                                          having_metes(std::move(having_metes_)) {};
 };
