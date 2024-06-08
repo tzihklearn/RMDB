@@ -47,20 +47,21 @@ public:
     std::unique_ptr<RmRecord> Next() override {
         for (auto &rid: rids_) {
             auto rec = fh_->get_record(rid, context_);
-
-            // 构建旧索引键
-            std::vector<std::vector<char>> oldKeys;
-            oldKeys.reserve(tab_.indexes.size());
+            // 删除旧索引
             for (auto &index: tab_.indexes) {
-                std::vector<char> key(index.col_tot_len);
+                auto ih = sm_manager_->ihs_.at(
+                        sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+                char key[index.col_tot_len];
                 int offset = 0;
                 for (size_t i = 0; i < index.col_num; ++i) {
-                    memcpy(key.data() + offset, rec->data + index.cols[i].offset, index.cols[i].len);
+                    memcpy(key + offset, rec->data + index.cols[i].offset, index.cols[i].len);
                     offset += index.cols[i].len;
                 }
-                oldKeys.push_back(std::move(key));
-            }
+                ih->delete_entry(key, context_->txn_);
 
+                auto *index_rcd = new IndexWriteRecord(WType::DELETE_TUPLE, tab_name_, rid, key, index.col_tot_len);
+                context_->txn_->append_index_write_record(index_rcd);
+            }
             // 更新记录
             std::vector<char> newRecord(fh_->get_file_hdr().record_size);
             memcpy(newRecord.data(), rec->data, fh_->get_file_hdr().record_size);
