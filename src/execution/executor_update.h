@@ -47,82 +47,88 @@ public:
     std::unique_ptr<RmRecord> Next() override {
         for (auto &rid: rids_) {
             auto rec = fh_->get_record(rid, context_);
-			// 删除旧索引
-	        for (auto &index: tab_.indexes) {
-		        auto ih = sm_manager_->ihs_.at(
-				        sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-		        char key[index.col_tot_len];
-		        int offset = 0;
-		        for (size_t i = 0; i < index.col_num; ++i) {
-			        memcpy(key + offset, rec->data + index.cols[i].offset, index.cols[i].len);
-			        offset += index.cols[i].len;
-		        }
-		        ih->delete_entry(key, context_->txn_);
 
-		        auto *index_rcd = new IndexWriteRecord(WType::DELETE_TUPLE, tab_name_, rid, key, index.col_tot_len);
-		        context_->txn_->append_index_write_record(index_rcd);
-	        }
-            // 更新记录
-            char newRecord[fh_->get_file_hdr().record_size];
-            memcpy(newRecord, rec->data, fh_->get_file_hdr().record_size);
-            for (auto &setClauses: set_clauses_) {
-                auto lhsCol = tab_.get_col(setClauses.lhs.col_name);
-                memcpy(newRecord + lhsCol->offset, setClauses.rhs.raw->data, lhsCol->len);
+            // 构建旧索引键
+            std::vector<std::vector<char>> oldKeys;
+            oldKeys.reserve(tab_.indexes.size());
+            for (auto &index: tab_.indexes) {
+                std::vector<char> key(index.col_tot_len);
+                int offset = 0;
+                for (size_t i = 0; i < index.col_num; ++i) {
+                    memcpy(key.data() + offset, rec->data + index.cols[i].offset, index.cols[i].len);
+                    offset += index.cols[i].len;
+                }
+                oldKeys.push_back(std::move(key));
             }
 
-            // --- 事务开始 ---
+            // 更新记录
+            std::vector<char> newRecord(fh_->get_file_hdr().record_size);
+            memcpy(newRecord.data(), rec->data, fh_->get_file_hdr().record_size);
+            for (auto &setClauses: set_clauses_) {
+                auto lhsCol = tab_.get_col(setClauses.lhs.col_name);
+                memcpy(newRecord.data() + lhsCol->offset, setClauses.rhs.raw->data, lhsCol->len);
+            }
+
+            // 事务开始
             RmRecord beforeUpdateRecord(rec->size);
             RmRecord afterUpdateRecord(rec->size);
+            memcpy(beforeUpdateRecord.data, rec->data, rec->size);
 
-            fh_->update_record(rid, newRecord, context_);
+            fh_->update_record(rid, newRecord.data(), context_);
 
-            memcpy(afterUpdateRecord.data, rec->data, rec->size);
+            memcpy(afterUpdateRecord.data, newRecord.data(), rec->size);
             auto *writeRecord = new TableWriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, afterUpdateRecord);
             context_->txn_->append_table_write_record(writeRecord);
 
             Transaction *txn = context_->txn_;
-            UpdateLogRecord *update_log_ = new UpdateLogRecord(txn->get_transaction_id(), beforeUpdateRecord,
-                                                               afterUpdateRecord, fh_->get_file_hdr().record_size,
-                                                               newRecord, rid, tab_name_);
+            auto *update_log_ = new UpdateLogRecord(txn->get_transaction_id(), beforeUpdateRecord,
+                                                    afterUpdateRecord, fh_->get_file_hdr().record_size,
+                                                    newRecord.data(), rid, tab_name_);
             update_log_->prev_lsn_ = txn->get_prev_lsn();
             txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(update_log_));
-            // --- 事务结束 ---
+            // 事务结束
 
-            // 尝试插入新索引条目
+            // 删除旧索引条目并插入新索引条目
             try {
-                for (auto &index: tab_.indexes) {
+                for (size_t i = 0; i < tab_.indexes.size(); ++i) {
+                    auto &index = tab_.indexes[i];
                     auto ih = sm_manager_->ihs_.at(
                             sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-                    char key[index.col_tot_len];
-                    int offset = 0;
-                    for (size_t i = 0; i < index.col_num; ++i) {
-                        memcpy(key + offset, newRecord + index.cols[i].offset, index.cols[i].len);
-                        offset += index.cols[i].len;
-                    }
-                    ih->insert_entry(key, rid, context_->txn_);
 
-                    auto *index_rcd = new IndexWriteRecord(WType::INSERT_TUPLE, tab_name_, rid, key, index.col_tot_len);
-                    context_->txn_->append_index_write_record(index_rcd);
+                    // 删除旧索引条目
+                    ih->delete_entry(oldKeys[i].data(), context_->txn_);
+                    auto *delete_index_rcd = new IndexWriteRecord(WType::DELETE_TUPLE, tab_name_, rid,
+                                                                  oldKeys[i].data(), index.col_tot_len);
+                    context_->txn_->append_index_write_record(delete_index_rcd);
+
+                    // 构建新索引键
+                    std::vector<char> newKey(index.col_tot_len);
+                    int offset = 0;
+                    for (size_t j = 0; j < index.col_num; ++j) {
+                        memcpy(newKey.data() + offset, newRecord.data() + index.cols[j].offset, index.cols[j].len);
+                        offset += index.cols[j].len;
+                    }
+
+                    // 插入新索引条目
+                    ih->insert_entry(newKey.data(), rid, context_->txn_);
+                    auto *insert_index_rcd = new IndexWriteRecord(WType::INSERT_TUPLE, tab_name_, rid, newKey.data(),
+                                                                  index.col_tot_len);
+                    context_->txn_->append_index_write_record(insert_index_rcd);
                 }
             } catch (InternalError &error) {
                 // 回滚更新记录
                 fh_->update_record(rid, rec->data, context_);
                 // 重新插入旧索引条目
-                for (auto &index: tab_.indexes) {
+                for (size_t i = 0; i < tab_.indexes.size(); ++i) {
+                    auto &index = tab_.indexes[i];
                     auto ih = sm_manager_->ihs_.at(
                             sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-                    char key[index.col_tot_len];
-                    int offset = 0;
-                    for (size_t i = 0; i < index.col_num; ++i) {
-                        memcpy(key + offset, rec->data + index.cols[i].offset, index.cols[i].len);
-                        offset += index.cols[i].len;
-                    }
-                    ih->insert_entry(key, rid, context_->txn_);
+                    ih->insert_entry(oldKeys[i].data(), rid, context_->txn_);
                 }
-                throw InternalError("index Error");
+                throw InternalError("Index Update Error");
             }
         }
-        return nullptr; // 返回nullptr表示没有更多元组
+        return nullptr; // 返回 nullptr 表示没有更多元组
     }
 
     Rid &rid() override { return _abstract_rid; }

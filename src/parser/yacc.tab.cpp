@@ -67,7 +67,7 @@
 
 
 /* First part of user prologue.  */
-#line 1 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 1 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
 
 #include "ast.h"
 #include "yacc.tab.h"
@@ -82,7 +82,7 @@ void yyerror(YYLTYPE *locp, const char* s) {
 
 using namespace ast;
 
-#line 86 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 86 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -1680,659 +1680,659 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* start: stmt ';'  */
-#line 67 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 67 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         parse_tree = (yyvsp[-1].sv_node);
         YYACCEPT;
     }
-#line 1689 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1689 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 3: /* start: HELP  */
-#line 72 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 72 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         parse_tree = std::make_shared<Help>();
         YYACCEPT;
     }
-#line 1698 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1698 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 4: /* start: EXIT  */
-#line 77 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 77 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         parse_tree = nullptr;
         YYACCEPT;
     }
-#line 1707 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1707 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 5: /* start: T_EOF  */
-#line 82 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 82 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         parse_tree = nullptr;
         YYACCEPT;
     }
-#line 1716 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1716 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 11: /* txnStmt: TXN_BEGIN  */
-#line 98 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 98 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<TxnBegin>();
     }
-#line 1724 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1724 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 12: /* txnStmt: TXN_COMMIT  */
-#line 102 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 102 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<TxnCommit>();
     }
-#line 1732 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1732 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 13: /* txnStmt: TXN_ABORT  */
-#line 106 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 106 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<TxnAbort>();
     }
-#line 1740 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1740 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 14: /* txnStmt: TXN_ROLLBACK  */
-#line 110 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 110 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<TxnRollback>();
     }
-#line 1748 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1748 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 15: /* dbStmt: SHOW TABLES  */
-#line 117 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 117 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<ShowTables>();
     }
-#line 1756 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1756 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 16: /* dbStmt: SHOW INDEX FROM tbName  */
-#line 122 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 122 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
 	(yyval.sv_node) = std::make_shared<ShowIndex>((yyvsp[0].sv_str));
     }
-#line 1764 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1764 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 17: /* setStmt: SET set_knob_type '=' VALUE_BOOL  */
-#line 129 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 129 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<SetStmt>((yyvsp[-2].sv_setKnobType), (yyvsp[0].sv_bool));
     }
-#line 1772 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1772 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 18: /* ddl: CREATE TABLE tbName '(' fieldList ')'  */
-#line 136 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 136 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<CreateTable>((yyvsp[-3].sv_str), (yyvsp[-1].sv_fields));
     }
-#line 1780 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1780 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 19: /* ddl: DROP TABLE tbName  */
-#line 140 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 140 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<DropTable>((yyvsp[0].sv_str));
     }
-#line 1788 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1788 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 20: /* ddl: DESC tbName  */
-#line 144 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 144 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<DescTable>((yyvsp[0].sv_str));
     }
-#line 1796 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1796 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 21: /* ddl: CREATE INDEX tbName '(' colNameList ')'  */
-#line 148 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 148 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<CreateIndex>((yyvsp[-3].sv_str), (yyvsp[-1].sv_strs));
     }
-#line 1804 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1804 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 22: /* ddl: DROP INDEX tbName '(' colNameList ')'  */
-#line 152 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 152 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<DropIndex>((yyvsp[-3].sv_str), (yyvsp[-1].sv_strs));
     }
-#line 1812 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1812 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 23: /* dml: INSERT INTO tbName VALUES '(' valueList ')'  */
-#line 159 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 159 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<InsertStmt>((yyvsp[-4].sv_str), (yyvsp[-1].sv_vals));
     }
-#line 1820 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1820 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 24: /* dml: DELETE FROM tbName optWhereClause  */
-#line 163 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 163 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<DeleteStmt>((yyvsp[-1].sv_str), (yyvsp[0].sv_conds));
     }
-#line 1828 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1828 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 25: /* dml: UPDATE tbName SET setClauses optWhereClause  */
-#line 167 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 167 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<UpdateStmt>((yyvsp[-3].sv_str), (yyvsp[-1].sv_set_clauses), (yyvsp[0].sv_conds));
     }
-#line 1836 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1836 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 26: /* dml: SELECT selector FROM tableList optWhereClause opt_order_clause group_by_col  */
-#line 171 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 171 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_node) = std::make_shared<SelectStmt>((yyvsp[-5].sv_cols), (yyvsp[-3].sv_strs), (yyvsp[-2].sv_conds), (yyvsp[-1].sv_orderby), (yyvsp[0].sv_group_by_col));
     }
-#line 1844 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1844 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 27: /* fieldList: field  */
-#line 178 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 178 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_fields) = std::vector<std::shared_ptr<Field>>{(yyvsp[0].sv_field)};
     }
-#line 1852 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1852 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 28: /* fieldList: fieldList ',' field  */
-#line 182 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 182 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_fields).push_back((yyvsp[0].sv_field));
     }
-#line 1860 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1860 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 29: /* colNameList: colName  */
-#line 189 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 189 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_strs) = std::vector<std::string>{(yyvsp[0].sv_str)};
     }
-#line 1868 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1868 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 30: /* colNameList: colNameList ',' colName  */
-#line 193 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 193 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_strs).push_back((yyvsp[0].sv_str));
     }
-#line 1876 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1876 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 31: /* field: colName type  */
-#line 200 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 200 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_field) = std::make_shared<ColDef>((yyvsp[-1].sv_str), (yyvsp[0].sv_type_len));
     }
-#line 1884 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1884 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 32: /* type: INT  */
-#line 207 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 207 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_type_len) = std::make_shared<TypeLen>(SV_TYPE_INT, sizeof(int));
     }
-#line 1892 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1892 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 33: /* type: CHAR '(' VALUE_INT ')'  */
-#line 211 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 211 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_type_len) = std::make_shared<TypeLen>(SV_TYPE_STRING, (yyvsp[-1].sv_int));
     }
-#line 1900 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1900 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 34: /* type: FLOAT  */
-#line 215 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 215 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_type_len) = std::make_shared<TypeLen>(SV_TYPE_FLOAT, sizeof(float));
     }
-#line 1908 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1908 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 35: /* valueList: value  */
-#line 222 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 222 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_vals) = std::vector<std::shared_ptr<Value>>{(yyvsp[0].sv_val)};
     }
-#line 1916 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1916 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 36: /* valueList: valueList ',' value  */
-#line 226 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 226 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_vals).push_back((yyvsp[0].sv_val));
     }
-#line 1924 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1924 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 37: /* value: VALUE_INT  */
-#line 233 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 233 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_val) = std::make_shared<IntLit>((yyvsp[0].sv_int));
     }
-#line 1932 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1932 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 38: /* value: VALUE_FLOAT  */
-#line 237 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 237 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_val) = std::make_shared<FloatLit>((yyvsp[0].sv_float));
     }
-#line 1940 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1940 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 39: /* value: VALUE_STRING  */
-#line 241 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 241 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_val) = std::make_shared<StringLit>((yyvsp[0].sv_str));
     }
-#line 1948 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1948 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 40: /* value: VALUE_BOOL  */
-#line 245 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 245 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_val) = std::make_shared<BoolLit>((yyvsp[0].sv_bool));
     }
-#line 1956 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1956 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 41: /* condition: col op expr  */
-#line 252 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 252 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_cond) = std::make_shared<BinaryExpr>((yyvsp[-2].sv_col), (yyvsp[-1].sv_comp_op), (yyvsp[0].sv_expr));
     }
-#line 1964 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1964 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 42: /* optWhereClause: %empty  */
-#line 258 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 258 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
                       { /* ignore*/ }
-#line 1970 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1970 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 43: /* optWhereClause: WHERE whereClause  */
-#line 260 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 260 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_conds) = (yyvsp[0].sv_conds);
     }
-#line 1978 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1978 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 44: /* whereClause: condition  */
-#line 267 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 267 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_conds) = std::vector<std::shared_ptr<BinaryExpr>>{(yyvsp[0].sv_cond)};
     }
-#line 1986 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1986 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 45: /* whereClause: whereClause AND condition  */
-#line 271 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 271 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_conds).push_back((yyvsp[0].sv_cond));
     }
-#line 1994 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 1994 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 46: /* col: tbName '.' colName  */
-#line 278 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 278 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>((yyvsp[-2].sv_str), (yyvsp[0].sv_str), SV_AGGREGATE_NULL, "");
     }
-#line 2002 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2002 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 47: /* col: colName  */
-#line 282 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 282 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[0].sv_str), SV_AGGREGATE_NULL, "");
     }
-#line 2010 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2010 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 48: /* col: AGGREGATE_SUM '(' colName ')' AS colName  */
-#line 286 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 286 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[-3].sv_str), (yyvsp[-5].sv_aggregate_type), (yyvsp[0].sv_str));
     }
-#line 2018 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2018 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 49: /* col: AGGREGATE_MIN '(' colName ')' AS colName  */
-#line 290 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 290 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[-3].sv_str), (yyvsp[-5].sv_aggregate_type), (yyvsp[0].sv_str));
     }
-#line 2026 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2026 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 50: /* col: AGGREGATE_MAX '(' colName ')' AS colName  */
-#line 294 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 294 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[-3].sv_str), (yyvsp[-5].sv_aggregate_type), (yyvsp[0].sv_str));
     }
-#line 2034 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2034 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 51: /* col: AGGREGATE_COUNT '(' colName ')' AS colName  */
-#line 298 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 298 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[-3].sv_str), (yyvsp[-5].sv_aggregate_type), (yyvsp[0].sv_str));
     }
-#line 2042 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2042 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 52: /* col: AGGREGATE_COUNT '(' '*' ')' AS colName  */
-#line 302 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 302 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", "", (yyvsp[-5].sv_aggregate_type), (yyvsp[0].sv_str));
     }
-#line 2050 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2050 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 53: /* col: AGGREGATE_SUM '(' colName ')'  */
-#line 306 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 306 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[-1].sv_str), (yyvsp[-3].sv_aggregate_type), "");
     }
-#line 2058 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2058 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 54: /* col: AGGREGATE_MIN '(' colName ')'  */
-#line 310 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 310 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
          (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[-1].sv_str), (yyvsp[-3].sv_aggregate_type), "");
     }
-#line 2066 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2066 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 55: /* col: AGGREGATE_MAX '(' colName ')'  */
-#line 314 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 314 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[-1].sv_str), (yyvsp[-3].sv_aggregate_type), "");
     }
-#line 2074 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2074 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 56: /* col: AGGREGATE_COUNT '(' colName ')'  */
-#line 318 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 318 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[-1].sv_str), (yyvsp[-3].sv_aggregate_type), "");
     }
-#line 2082 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2082 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 57: /* col: AGGREGATE_COUNT '(' '*' ')'  */
-#line 322 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 322 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", "", (yyvsp[-3].sv_aggregate_type), "");
     }
-#line 2090 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2090 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 58: /* colList: col  */
-#line 329 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 329 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_cols) = std::vector<std::shared_ptr<Col>>{(yyvsp[0].sv_col)};
     }
-#line 2098 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2098 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 59: /* colList: colList ',' col  */
-#line 333 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 333 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_cols).push_back((yyvsp[0].sv_col));
     }
-#line 2106 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2106 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 60: /* op: '='  */
-#line 340 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 340 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_EQ;
     }
-#line 2114 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2114 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 61: /* op: '<'  */
-#line 344 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 344 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_LT;
     }
-#line 2122 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2122 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 62: /* op: '>'  */
-#line 348 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 348 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_GT;
     }
-#line 2130 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2130 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 63: /* op: NEQ  */
-#line 352 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 352 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_NE;
     }
-#line 2138 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2138 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 64: /* op: LEQ  */
-#line 356 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 356 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_LE;
     }
-#line 2146 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2146 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 65: /* op: GEQ  */
-#line 360 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 360 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_GE;
     }
-#line 2154 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2154 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 66: /* expr: value  */
-#line 367 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 367 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_expr) = std::static_pointer_cast<Expr>((yyvsp[0].sv_val));
     }
-#line 2162 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2162 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 67: /* expr: col  */
-#line 371 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 371 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_expr) = std::static_pointer_cast<Expr>((yyvsp[0].sv_col));
     }
-#line 2170 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2170 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 68: /* setClauses: setClause  */
-#line 378 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 378 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_set_clauses) = std::vector<std::shared_ptr<SetClause>>{(yyvsp[0].sv_set_clause)};
     }
-#line 2178 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2178 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 69: /* setClauses: setClauses ',' setClause  */
-#line 382 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 382 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_set_clauses).push_back((yyvsp[0].sv_set_clause));
     }
-#line 2186 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2186 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 70: /* setClause: colName '=' value  */
-#line 389 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 389 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_set_clause) = std::make_shared<SetClause>((yyvsp[-2].sv_str), (yyvsp[0].sv_val));
     }
-#line 2194 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2194 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 71: /* selector: '*'  */
-#line 396 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 396 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_cols) = {};
     }
-#line 2202 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2202 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 73: /* AGGREGATE_SUM: SUM  */
-#line 404 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 404 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_aggregate_type) = SV_AGGREGATE_SUM;
     }
-#line 2210 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2210 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 74: /* AGGREGATE_COUNT: COUNT  */
-#line 411 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 411 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_aggregate_type) = SV_AGGREGATE_COUNT;
     }
-#line 2218 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2218 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 75: /* AGGREGATE_MAX: MAX  */
-#line 418 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 418 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_aggregate_type) = SV_AGGREGATE_MAX;
     }
-#line 2226 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2226 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 76: /* AGGREGATE_MIN: MIN  */
-#line 425 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 425 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_aggregate_type) = SV_AGGREGATE_MIN;
     }
-#line 2234 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2234 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 77: /* group_by_col: %empty  */
-#line 443 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 443 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
                       { /* ignore*/ }
-#line 2240 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2240 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 78: /* group_by_col: GROUP BY col  */
-#line 445 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 445 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
 	(yyval.sv_group_by_col) = std::make_shared<GroupBy>((yyvsp[0].sv_col), std::vector<std::shared_ptr<BinaryExpr>>{});
     }
-#line 2248 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2248 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 79: /* group_by_col: GROUP BY col HAVING whereClause  */
-#line 449 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 449 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
 	(yyval.sv_group_by_col) = std::make_shared<GroupBy>((yyvsp[-2].sv_col), (yyvsp[0].sv_conds));
     }
-#line 2256 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2256 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 80: /* tableList: tbName  */
-#line 456 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 456 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_strs) = std::vector<std::string>{(yyvsp[0].sv_str)};
     }
-#line 2264 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2264 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 81: /* tableList: tableList ',' tbName  */
-#line 460 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 460 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_strs).push_back((yyvsp[0].sv_str));
     }
-#line 2272 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2272 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 82: /* tableList: tableList JOIN tbName  */
-#line 464 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 464 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     {
         (yyval.sv_strs).push_back((yyvsp[0].sv_str));
     }
-#line 2280 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2280 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 83: /* opt_order_clause: ORDER BY order_clause  */
-#line 471 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 471 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     { 
         (yyval.sv_orderby) = (yyvsp[0].sv_orderby); 
     }
-#line 2288 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2288 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 84: /* opt_order_clause: %empty  */
-#line 474 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 474 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
                       { /* ignore*/ }
-#line 2294 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2294 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 85: /* order_clause: col opt_asc_desc  */
-#line 479 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 479 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
     { 
         (yyval.sv_orderby) = std::make_shared<OrderBy>((yyvsp[-1].sv_col), (yyvsp[0].sv_orderby_dir));
     }
-#line 2302 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2302 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 86: /* opt_asc_desc: ASC  */
-#line 485 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 485 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
                  { (yyval.sv_orderby_dir) = OrderBy_ASC;     }
-#line 2308 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2308 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 87: /* opt_asc_desc: DESC  */
-#line 486 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 486 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
                  { (yyval.sv_orderby_dir) = OrderBy_DESC;    }
-#line 2314 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2314 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 88: /* opt_asc_desc: %empty  */
-#line 487 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 487 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
             { (yyval.sv_orderby_dir) = OrderBy_DEFAULT; }
-#line 2320 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2320 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 89: /* set_knob_type: ENABLE_NESTLOOP  */
-#line 491 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 491 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
                     { (yyval.sv_setKnobType) = EnableNestLoop; }
-#line 2326 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2326 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
   case 90: /* set_knob_type: ENABLE_SORTMERGE  */
-#line 492 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 492 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
                          { (yyval.sv_setKnobType) = EnableSortMerge; }
-#line 2332 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2332 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
     break;
 
 
-#line 2336 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.tab.cpp"
+#line 2336 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.tab.cpp"
 
       default: break;
     }
@@ -2561,5 +2561,5 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 498 "/home/tzih/CLionProjects/db2024-x/src/parser/yacc.y"
+#line 498 "/Users/weibingrui/Desktop/db2024-x/src/parser/yacc.y"
 

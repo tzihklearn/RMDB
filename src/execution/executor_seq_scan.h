@@ -50,16 +50,14 @@ public:
         }
     }
 
-    // 判断一个col是否满足指定条件
     bool is_fed_cond(const std::vector<ColMeta> &rec_cols, const Condition &cond, const RmRecord *target) {
-        // 1. 获取左操作数的colMet
+        // 1. 获取左操作数的colMeta
         auto lhsCol = cond.lhs_col;
         auto lhsColMeta = *get_col(rec_cols, lhsCol);
 
         // 2. 如果右操作数是Col类型，获取右操作数的ColMeta
         ColMeta rhsColMeta;
         if (!cond.is_rhs_val) {
-            // 2.1 如果是col类型的
             auto rhsCol = cond.rhs_col;
             rhsColMeta = *get_col(rec_cols, rhsCol);
         }
@@ -77,6 +75,14 @@ public:
         return compare_value(lhsVal, rhsVal, cond.op);
     }
 
+    // 判断记录是否满足所有条件
+    bool record_satisfies_conditions(const std::vector<ColMeta> &rec_cols, const std::vector<Condition> &conditions,
+                                     const RmRecord *record) {
+        return std::all_of(conditions.begin(), conditions.end(), [&](const Condition &cond) {
+            return is_fed_cond(rec_cols, cond, record);
+        });
+    }
+
     void beginTuple() override {
         // 1. 获取一个RmScan对象的指针,赋值给算子的变量scan_
         scan_ = std::make_unique<RmScan>(fh_);
@@ -86,23 +92,13 @@ public:
             // 2.1 通过RmFileHandle获取到seq_scan扫描到的record并封装为RmRecord对象
             auto record = fh_->get_record(scan_->rid(), context_);
 
-            // 2.2 用一个变量记录是否该rcd满足所有条件
-            bool fedAllConditions = true;
-            // 2.3 因为是所有条件，要对每个条件进行验证
-            for (auto &fedCondition: fedConditions) {
-                if (!is_fed_cond(cols_, fedCondition, record.get())) {
-                    fedAllConditions = false;
-                    break;
-                }
-            }
-            // 2.4 如果不满足所有条件，RmScan遍历下一个record
-            if (!fedAllConditions) {
-                scan_->next();
-            } else {
-                // 2.5 如果满足所有条件，break并且将该算子现在指向的rid_标记为找到的record的rid
+            // 2.2 检查是否满足所有条件
+            if (record_satisfies_conditions(cols_, fedConditions, record.get())) {
                 rid_ = scan_->rid();
                 break;
             }
+
+            scan_->next();
         }
     }
 
@@ -113,18 +109,8 @@ public:
             // 1.1 通过RmFileHandle获取到seq_scan扫描到的record并封装为RmRecord对象
             auto record = fh_->get_record(scan_->rid(), context_);
 
-            // 1.2 用一个变量记录是否该rcd满足所有条件
-            bool fedAllConditions = true;
-            // 1.3 因为是所有条件，要对每个条件进行验证
-            for (auto &fedCondition: fedConditions) {
-                if (!is_fed_cond(cols_, fedCondition, record.get())) {
-                    fedAllConditions = false;
-                    break;
-                }
-            }
-
-            // 1.4 如果满足所有条件，将当前扫描的RmScan的rid赋值给算子的rid，并break
-            if (fedAllConditions) {
+            // 1.2 检查是否满足所有条件
+            if (record_satisfies_conditions(cols_, fedConditions, record.get())) {
                 rid_ = scan_->rid();
                 break;
             }
