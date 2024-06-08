@@ -21,10 +21,14 @@ using namespace ast;
 %define parse.error verbose
 
 // keywords
-%token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY
+%token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY AS GROUP
 WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
+GROUP_BY HAVING
+
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
+
+%token COUNT MAX MIN SUM
 
 // type-specific tokens
 %token <sv_str> IDENTIFIER VALUE_STRING
@@ -52,6 +56,10 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_CO
 %type <sv_orderby>  order_clause opt_order_clause
 %type <sv_orderby_dir> opt_asc_desc
 %type <sv_setKnobType> set_knob_type
+
+%type <sv_aggregate_type> AGGREGATE_SUM AGGREGATE_COUNT AGGREGATE_MAX AGGREGATE_MIN
+%type <sv_group_by> group_by
+%type <sv_group_by_col> group_by_col
 
 %%
 start:
@@ -159,9 +167,9 @@ dml:
     {
         $$ = std::make_shared<UpdateStmt>($2, $4, $5);
     }
-    |   SELECT selector FROM tableList optWhereClause opt_order_clause
+    |   SELECT selector FROM tableList optWhereClause opt_order_clause group_by_col
     {
-        $$ = std::make_shared<SelectStmt>($2, $4, $5, $6);
+        $$ = std::make_shared<SelectStmt>($2, $4, $5, $6, $7);
     }
     ;
 
@@ -268,11 +276,51 @@ whereClause:
 col:
         tbName '.' colName
     {
-        $$ = std::make_shared<Col>($1, $3);
+        $$ = std::make_shared<Col>($1, $3, SV_AGGREGATE_NULL, "");
     }
     |   colName
     {
-        $$ = std::make_shared<Col>("", $1);
+        $$ = std::make_shared<Col>("", $1, SV_AGGREGATE_NULL, "");
+    }
+    |   AGGREGATE_SUM '(' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", $3, $1, $6);
+    }
+    |    AGGREGATE_MIN '(' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", $3, $1, $6);
+    }
+    |    AGGREGATE_MAX '(' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", $3, $1, $6);
+    }
+    |   AGGREGATE_COUNT '(' colName ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", $3, $1, $6);
+    }
+    |   AGGREGATE_COUNT '(' '*' ')' AS colName
+    {
+        $$ = std::make_shared<Col>("", "", $1, $6);
+    }
+    |   AGGREGATE_SUM '(' colName ')'
+    {
+        $$ = std::make_shared<Col>("", $3, $1, "");
+    }
+    |    AGGREGATE_MIN '(' colName ')'
+    {
+         $$ = std::make_shared<Col>("", $3, $1, "");
+    }
+    |    AGGREGATE_MAX '(' colName ')'
+    {
+        $$ = std::make_shared<Col>("", $3, $1, "");
+    }
+    |   AGGREGATE_COUNT '(' colName ')'
+    {
+        $$ = std::make_shared<Col>("", $3, $1, "");
+    }
+    |   AGGREGATE_COUNT '(' '*' ')'
+    {
+        $$ = std::make_shared<Col>("", "", $1, "");
     }
     ;
 
@@ -349,6 +397,58 @@ selector:
         $$ = {};
     }
     |   colList
+    ;
+
+AGGREGATE_SUM:
+        SUM
+    {
+        $$ = SV_AGGREGATE_SUM;
+    }
+    ;
+
+AGGREGATE_COUNT:
+        COUNT
+    {
+        $$ = SV_AGGREGATE_COUNT;
+    }
+    ;
+
+AGGREGATE_MAX:
+        MAX
+    {
+        $$ = SV_AGGREGATE_MAX;
+    }
+    ;
+
+AGGREGATE_MIN:
+        MIN
+    {
+        $$ = SV_AGGREGATE_MIN;
+    }
+    ;
+
+group_by:
+	/* epsilon */ { /* ignore*/ }
+    |	GROUP BY col
+    {
+	$$ = std::make_shared<GroupBy>($3, std::vector<std::shared_ptr<BinaryExpr>>{});
+    }
+    |   GROUP BY col HAVING whereClause
+    {
+	$$ = std::make_shared<GroupBy>($3, $5);
+    }
+    ;
+
+group_by_col:
+	/* epsilon */ { /* ignore*/ }
+    |	GROUP BY col
+    {
+	$$ = std::make_shared<GroupBy>($3, std::vector<std::shared_ptr<BinaryExpr>>{});
+    }
+    |   GROUP BY col HAVING whereClause
+    {
+	$$ = std::make_shared<GroupBy>($3, $5);
+    }
     ;
 
 tableList:

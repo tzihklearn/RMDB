@@ -173,6 +173,8 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             columns.push_back(col_str);
         }
         // print record into buffer
+        int a = sel_cols.size();
+        int b = columns.size();
         rec_printer.print_record(columns, context);
         // print record into file
         outfile << "|";

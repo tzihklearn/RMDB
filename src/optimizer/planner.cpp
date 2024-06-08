@@ -399,11 +399,30 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
                                                 query->set_clauses);
     } else if (auto x = std::dynamic_pointer_cast<ast::SelectStmt>(query->parse)) {
 
-        std::shared_ptr<plannerInfo> root = std::make_shared<plannerInfo>(x);
-        // 生成select语句的查询执行计划
-        std::shared_ptr<Plan> projection = generate_select_plan(std::move(query), context);
-        plannerRoot = std::make_shared<DMLPlan>(T_Select, projection, std::string(), std::vector<Value>(),
-                                                std::vector<Condition>(), std::vector<SetClause>());
+        if (x->has_ag) {
+            // 聚合函数query转plan
+
+            // 扫描表方式
+            std::shared_ptr<Plan> table_scan_plan;
+
+            // TODO: 未处理索引
+            // 设置扫描表的执行计划
+            table_scan_plan = std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, query->tables[0], query->conds, std::vector<std::string>());
+
+            // 设置聚合函数的执行计划，将表扫描的执行计划作为子计划
+            auto aggregatePlan = std::make_shared<DMLPlan>(T_SvAggregate, table_scan_plan,  query->tables[0], std::vector<Value>() , query->conds, std::vector<SetClause>());
+            aggregatePlan->aggregationMetas_ = query->aggregate_metas;
+            aggregatePlan->group_by_col_ = query->group_by_col;
+
+            aggregatePlan->output_col_ = query->cols;
+            return aggregatePlan;
+        } else {
+            std::shared_ptr<plannerInfo> root = std::make_shared<plannerInfo>(x);
+            // 生成select语句的查询执行计划
+            std::shared_ptr<Plan> projection = generate_select_plan(std::move(query), context);
+            plannerRoot = std::make_shared<DMLPlan>(T_Select, projection, std::string(), std::vector<Value>(),
+                                                    std::vector<Condition>(), std::vector<SetClause>());
+        }
     } else {
         throw InternalError("Unexpected AST root");
     }

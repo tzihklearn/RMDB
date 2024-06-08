@@ -34,8 +34,12 @@ class Query{
     std::vector<SetClause> set_clauses;
     //insert 的values值
     std::vector<Value> values;
+    // 聚合函数meta
+    std::vector<AggregateMeta> aggregate_metas;
+    // 聚合函数的group by
+    std::shared_ptr<GroupByMete> group_by_col;
 
-    Query(){}
+    Query()= default;
 
 };
 
@@ -56,5 +60,5 @@ private:
     void check_clause(const std::vector<std::string> &tab_names, std::vector<Condition> &conds);
     Value convert_sv_value(const std::shared_ptr<ast::Value> &sv_val);
     CompOp convert_sv_comp_op(ast::SvCompOp op);
+    AggregateOp convert_sv_aggregate_op(ast::SvAggregateType type);
 };
-

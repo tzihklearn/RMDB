@@ -9,6 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 #pragma once
 
+#include <utility>
 #include <vector>
 #include <string>
 #include <memory>
@@ -34,6 +35,15 @@ enum OrderByDir {
 
 enum SetKnobType {
     EnableNestLoop, EnableSortMerge
+};
+
+// 聚合函数类型
+enum SvAggregateType {
+    SV_AGGREGATE_COUNT,
+    SV_AGGREGATE_SUM,
+    SV_AGGREGATE_MAX,
+    SV_AGGREGATE_MIN,
+    SV_AGGREGATE_NULL
 };
 
 // Base class for tree nodes
@@ -151,9 +161,11 @@ struct BoolLit : public Value {
 struct Col : public Expr {
     std::string tab_name;
     std::string col_name;
+    SvAggregateType ag_type;
+    std::string as_name;
 
-    Col(std::string tab_name_, std::string col_name_) :
-            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)) {}
+    Col(std::string tab_name_, std::string col_name_, SvAggregateType ag_type_, std::string as_name_) :
+            tab_name(std::move(tab_name_)), col_name(std::move(col_name_)), ag_type(ag_type_), as_name(std::move(as_name_)) {}
 };
 
 struct SetClause : public TreeNode {
@@ -179,6 +191,14 @@ struct OrderBy : public TreeNode
     OrderByDir orderby_dir;
     OrderBy( std::shared_ptr<Col> cols_, OrderByDir orderby_dir_) :
        cols(std::move(cols_)), orderby_dir(std::move(orderby_dir_)) {}
+};
+
+struct GroupBy : public TreeNode
+{
+    std::shared_ptr<Col> col;
+    std::vector<std::shared_ptr<BinaryExpr>> having;
+    GroupBy(std::shared_ptr<Col> col_, std::vector<std::shared_ptr<BinaryExpr>> having_) :
+       col(std::move(col_)), having(having_) {}
 };
 
 struct InsertStmt : public TreeNode {
@@ -228,15 +248,18 @@ struct SelectStmt : public TreeNode {
 
     bool has_sort;
     std::shared_ptr<OrderBy> order;
-
+    bool  has_ag;
+    std::shared_ptr<GroupBy> group_by_col;
 
     SelectStmt(std::vector<std::shared_ptr<Col>> cols_,
                std::vector<std::string> tabs_,
                std::vector<std::shared_ptr<BinaryExpr>> conds_,
-               std::shared_ptr<OrderBy> order_) :
+               std::shared_ptr<OrderBy> order_,
+               std::shared_ptr<GroupBy> group_by_col_):
             cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)),
-            order(std::move(order_)) {
+            order(std::move(order_)), group_by_col(std::move(group_by_col_)) {
                 has_sort = (bool)order;
+                has_ag = (bool)group_by_col;
             }
 };
 
@@ -280,6 +303,12 @@ struct SemValue {
 
     std::shared_ptr<BinaryExpr> sv_cond;
     std::vector<std::shared_ptr<BinaryExpr>> sv_conds;
+
+    // 存储聚合函数类型临时数据
+    SvAggregateType sv_aggregate_type;
+    std::shared_ptr<GroupBy> sv_group_by;
+    std::shared_ptr<GroupBy> sv_group_by_col;
+
 
     std::shared_ptr<OrderBy> sv_orderby;
 
