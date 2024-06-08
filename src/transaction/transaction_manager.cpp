@@ -23,20 +23,22 @@ std::unordered_map<txn_id_t, Transaction *> TransactionManager::txn_map = {};
 Transaction *TransactionManager::begin(Transaction *txn, LogManager *log_manager) {
     // 死锁预防
     std::scoped_lock lock(latch_);
+
     // 1. 判断传入事务参数是否为空指针
     if (txn == nullptr) {
         // 2. 如果为空指针，创建新事务
         txn = new Transaction(next_txn_id_++);
     }
+
     // 3. 把开始事务加入到全局事务表中
     txn_map.emplace(txn->get_transaction_id(), txn);
 
-    BeginLogRecord *begin_log_ = new BeginLogRecord(txn->get_transaction_id());
-    begin_log_->prev_lsn_ = txn->get_prev_lsn();
-    txn->set_prev_lsn(log_manager->flush_log_to_disk(begin_log_));
-    delete begin_log_;
+    // 4. 创建并写入Begin日志记录
+    BeginLogRecord begin_log(txn->get_transaction_id());
+    begin_log.prev_lsn_ = txn->get_prev_lsn();
+    txn->set_prev_lsn(log_manager->flush_log_to_disk(&begin_log));
 
-    // 4. 返回当前事务指针
+    // 5. 返回当前事务指针
     return txn;
 }
 
@@ -46,26 +48,42 @@ Transaction *TransactionManager::begin(Transaction *txn, LogManager *log_manager
  * @param {LogManager*} log_manager 日志管理器指针
  */
 void TransactionManager::commit(Transaction *txn, LogManager *log_manager) {
-    // Todo:
-    // 1. 如果存在未提交的写操作，提交所有的写操作
-    // 2. 释放所有锁
-    // 3. 释放事务相关资源，eg.锁集
-    // 4. 把事务日志刷入磁盘中
-    // 5. 更新事务状态
-
     // 死锁预防
     std::scoped_lock lock(latch_);
 
-    // 事务提交之后释放所有锁
+    // 1. 提交所有的写操作
+    auto table_write_set = txn->get_table_write_set();
+    Context context(lock_manager_, log_manager, txn);
+
+    // 遍历并提交所有表级写操作
+    while (!table_write_set->empty()) {
+        auto write_rcd = table_write_set->back();
+        table_write_set->pop_back();
+        delete write_rcd; // 避免内存泄露
+    }
+
+    // 遍历并提交所有索引级写操作
+    auto index_write_set = txn->get_index_write_set();
+    while (!index_write_set->empty()) {
+        auto index_write_rcd = index_write_set->back();
+        index_write_set->pop_back();
+        delete index_write_rcd; // 避免内存泄露
+    }
+
+    // 2. 释放所有锁
     for (auto const &lock: *(txn->get_lock_set())) {
         lock_manager_->unlock(txn, lock);
     }
 
-    CommitLogRecord *commit_log_ = new CommitLogRecord(txn->get_transaction_id());
-    commit_log_->prev_lsn_ = txn->get_prev_lsn();
-    txn->set_prev_lsn(log_manager->flush_log_to_disk(commit_log_));
-    delete commit_log_;
+    // 3. 释放事务相关资源
+    txn->get_lock_set()->clear();
 
+    // 4. 把事务提交日志刷入磁盘中
+    CommitLogRecord commit_log(txn->get_transaction_id());
+    commit_log.prev_lsn_ = txn->get_prev_lsn();
+    txn->set_prev_lsn(log_manager->flush_log_to_disk(&commit_log));
+
+    // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
 }
 
@@ -78,12 +96,15 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
     // 死锁预防
     std::scoped_lock lock(latch_);
 
+    // 创建上下文
+    Context context(lock_manager_, log_manager, txn);
+
     // 1. 回滚所有写操作
     auto table_write_set = txn->get_table_write_set();
-    Context context(lock_manager_, log_manager, txn);
     while (!table_write_set->empty()) {
         auto write_rcd = table_write_set->back();
         auto &rm_file_hdl = sm_manager_->fhs_.at(write_rcd->GetTableName());
+
         switch (write_rcd->GetWriteType()) {
             case WType::INSERT_TUPLE: {
                 rm_file_hdl->delete_record(write_rcd->GetRid(), &context);
@@ -99,18 +120,15 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
             }
         }
         table_write_set->pop_back();
-
-        // 避免内存泄露
-        delete write_rcd;
+        delete write_rcd; // 避免内存泄露
     }
-    table_write_set->clear();
 
     auto index_write_set = txn->get_index_write_set();
     while (!index_write_set->empty()) {
         auto index_write_rcd = index_write_set->back();
         std::string table_name = index_write_rcd->GetTableName();
-        auto tabs = sm_manager_->db_.get_table(table_name);
         auto indexes = sm_manager_->db_.get_table(table_name).indexes;
+
         switch (index_write_rcd->GetWriteType()) {
             case WType::INSERT_TUPLE: {
                 for (auto &index: indexes) {
@@ -129,24 +147,22 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
                 break;
             }
             case WType::UPDATE_TUPLE:
+                // 更新操作需要特定的回滚逻辑，这里省略
                 break;
         }
         index_write_set->pop_back();
-
-        // 避免内存泄露
-        delete index_write_rcd;
+        delete index_write_rcd; // 避免内存泄露
     }
-    index_write_set->clear();
 
     // 事务abort之后释放所有锁
     for (auto const &lock: *(txn->get_lock_set())) {
         lock_manager_->unlock(txn, lock);
     }
 
-    AbortLogRecord *abort_log_ = new AbortLogRecord(txn->get_transaction_id());
-    abort_log_->prev_lsn_ = txn->get_prev_lsn();
-    txn->set_prev_lsn(log_manager->flush_log_to_disk(abort_log_));
-    delete abort_log_;
+    // 写入Abort日志记录
+    AbortLogRecord abort_log(txn->get_transaction_id());
+    abort_log.prev_lsn_ = txn->get_prev_lsn();
+    txn->set_prev_lsn(log_manager->flush_log_to_disk(&abort_log));
 
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
