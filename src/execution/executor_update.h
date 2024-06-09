@@ -20,11 +20,12 @@ class UpdateExecutor : public AbstractExecutor {
 private:
     TabMeta tab_;                           // 表中的元数据
     std::vector<Condition> conds_;          // 更新的条件
-    RmFileHandle *fh_;                      // 表的数据文件句柄(句柄是一个指向对象的指针)
+    RmFileHandle *fh_;                      // 表的数据文件句柄
     std::vector<Rid> rids_;                 // 可能需要更新的位置
     std::string tab_name_;                  // 表名
     std::vector<SetClause> set_clauses_;    // 需要更新的字段和值
     SmManager *sm_manager_;
+    Context *context_;                      // 上下文
 
 public:
     UpdateExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<SetClause> set_clauses,
@@ -38,13 +39,14 @@ public:
         rids_ = rids;
         context_ = context;
 
-        // 加IX锁
-        if (context_ != nullptr) {
-            context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
-        }
+        // IX
+        context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
     }
 
     std::unique_ptr<RmRecord> Next() override {
+        // X
+        context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid(), fh_->GetFd());
+
         for (auto &rid: rids_) {
             auto rec = fh_->get_record(rid, context_);
 

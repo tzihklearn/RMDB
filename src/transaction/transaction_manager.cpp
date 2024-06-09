@@ -10,7 +10,6 @@ See the Mulan PSL v2 for more details. */
 
 #include "transaction_manager.h"
 #include "record/rm_file_handle.h"
-#include "system/sm_manager.h"
 
 std::unordered_map<txn_id_t, Transaction *> TransactionManager::txn_map = {};
 
@@ -28,6 +27,7 @@ Transaction *TransactionManager::begin(Transaction *txn, LogManager *log_manager
     if (txn == nullptr) {
         // 2. 如果为空指针，创建新事务
         txn = new Transaction(next_txn_id_++);
+        txn->set_state(TransactionState::GROWING);
     }
 
     // 3. 把开始事务加入到全局事务表中
@@ -51,32 +51,18 @@ void TransactionManager::commit(Transaction *txn, LogManager *log_manager) {
     // 死锁预防
     std::scoped_lock lock(latch_);
 
-    // 1. 提交所有的写操作
-    auto table_write_set = txn->get_table_write_set();
-    Context context(lock_manager_, log_manager, txn);
-
-    // 遍历并提交所有表级写操作
-    while (!table_write_set->empty()) {
-        auto write_rcd = table_write_set->back();
-        table_write_set->pop_back();
-        delete write_rcd; // 避免内存泄露
-    }
-
-    // 遍历并提交所有索引级写操作
-    auto index_write_set = txn->get_index_write_set();
-    while (!index_write_set->empty()) {
-        auto index_write_rcd = index_write_set->back();
-        index_write_set->pop_back();
-//        delete index_write_rcd; // 避免内存泄露
-    }
-
     // 2. 释放所有锁
-    for (auto const &lock: *(txn->get_lock_set())) {
-        lock_manager_->unlock(txn, lock);
+    txn->set_state(TransactionState::SHRINKING);
+    //释放所有txn加的锁
+    std::shared_ptr<std::unordered_set<LockDataId>> lock_set_ = txn->get_lock_set();
+    for (auto iter: *lock_set_) {
+        this->lock_manager_->unlock(txn, iter);
     }
 
     // 3. 释放事务相关资源
     txn->get_lock_set()->clear();
+    txn->get_table_write_set()->clear();
+    txn->get_index_write_set()->clear();
 
     // 4. 把事务提交日志刷入磁盘中
     CommitLogRecord commit_log(txn->get_transaction_id());
@@ -155,15 +141,17 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
     index_write_set->clear();
 
     // 3. 事务abort之后释放所有锁
-    for (const auto &lock: *(txn->get_lock_set())) {
-        lock_manager_->unlock(txn, lock);
+    std::shared_ptr<std::unordered_set<LockDataId>> lock_set_ = txn->get_lock_set();
+    for (auto iter: *lock_set_) {
+        this->lock_manager_->unlock(txn, iter);
     }
 
+    txn->get_lock_set()->clear();
+
     // 4. 写入abort日志
-    auto *abort_log = new AbortLogRecord(txn->get_transaction_id());
-    abort_log->prev_lsn_ = txn->get_prev_lsn();
-    txn->set_prev_lsn(log_manager->flush_log_to_disk(abort_log));
-    delete abort_log;
+    AbortLogRecord abort_log(txn->get_transaction_id());
+    abort_log.prev_lsn_ = txn->get_prev_lsn();
+    txn->set_prev_lsn(log_manager->flush_log_to_disk(&abort_log));
 
     // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);

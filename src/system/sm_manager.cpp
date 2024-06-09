@@ -97,7 +97,6 @@ void SmManager::open_db(const std::string &db_name) {
     std::ifstream ifs(DB_META_NAME);
     ifs >> db_;
     ifs.close();
-    //
     for (auto &[table_name, table_meta]: db_.tabs_) {
         fhs_.emplace(table_name, rm_manager_->open_file(table_name));
     }
@@ -145,33 +144,6 @@ void SmManager::show_tables(Context *context) {
     }
     printer.print_separator(context);
     outfile.close();
-}
-
-void SmManager::show_index(std::string tab_name, Context *context) {
-    auto index_metas = db_.get_table(tab_name).indexes;
-    std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
-    RecordPrinter printer(3);
-    for (auto &index: index_metas) {
-        outfile << "| " << tab_name << " | unique | " << "(";
-        // std::cout<< "| " << tableName << " | unique | " << "(";
-        std::stringstream ss;
-        ss << "(";
-        auto it = index.cols.begin();
-        outfile << (*it).name;
-        ss << (*it).name;
-        it++;
-        for (; it != index.cols.end(); ++it) {
-            outfile << "," << (*it).name;
-            ss << "," << (*it).name;
-        }
-
-        outfile << ") |\n";
-        ss << ")";
-        // printer.print_separator(context);
-        printer.print_record({tab_name, "unique", ss.str()}, context);
-        // printer.print_separator(context);
-    }
 }
 
 /**
@@ -262,16 +234,20 @@ void SmManager::drop_table(const std::string &tab_name, Context *context) {
  * @param {Context*} context
  */
 void SmManager::create_index(const std::string &tab_name, const std::vector<std::string> &col_names, Context *context) {
+    // create index加S锁
+    if (context != nullptr) {
+        context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
+
     // 1. 判断该索引是否已经被创建
     if (ix_manager_->exists(tab_name, col_names)) {
-        throw new IndexExistsError(tab_name, col_names);
+        throw IndexExistsError(tab_name, col_names);
     }
     std::string index_name = ix_manager_->get_index_name(tab_name, col_names);
 
     // 2. 将col_names中每一个string类型col,得到对应的ColMeta类型col(还要修改col_meta的index变量)
     std::vector<ColMeta> col_metas;
     for (auto &col_name: col_names) {
-
         ColMeta &col_meta = *db_.get_table(tab_name).get_col(col_name);
         col_meta.index = true;
         col_metas.push_back(col_meta);
@@ -279,7 +255,6 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
 
     // 3. 调用IxManager的createIndex方法初始化index文件
     ix_manager_->create_index(tab_name, col_metas);
-
 
     // 4. 更新TableMeta
     int fd = disk_manager_->open_file(index_name);
@@ -327,6 +302,10 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
  * @param {Context*} context
  */
 void SmManager::drop_index(const std::string &tab_name, const std::vector<std::string> &col_names, Context *context) {
+    // drop index加S锁
+    if (context != nullptr) {
+        context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
 
     if (!db_.is_table(tab_name)) {
         throw TableNotFoundError(tab_name);
@@ -356,9 +335,41 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<std::s
  * @param {Context*} context
  */
 void SmManager::drop_index(const std::string &tab_name, const std::vector<ColMeta> &cols, Context *context) {
+    // drop index加S锁
+    if (context != nullptr) {
+        context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
     std::vector<std::string> colNames;
     for (auto colMeta: cols) {
         colNames.emplace_back(colMeta.name);
     }
     drop_index(tab_name, colNames, context);
+}
+
+void SmManager::show_index(std::string tab_name, Context *context) {
+    // show index加S锁
+    if (context != nullptr) {
+        context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
+    auto index_metas = db_.get_table(tab_name).indexes;
+    std::fstream outfile;
+    outfile.open("output.txt", std::ios::out | std::ios::app);
+    RecordPrinter printer(3);
+    for (auto &index: index_metas) {
+        outfile << "| " << tab_name << " | unique | " << "(";
+        std::stringstream ss;
+        ss << "(";
+        auto it = index.cols.begin();
+        outfile << (*it).name;
+        ss << (*it).name;
+        it++;
+        for (; it != index.cols.end(); ++it) {
+            outfile << "," << (*it).name;
+            ss << "," << (*it).name;
+        }
+
+        outfile << ") |\n";
+        ss << ")";
+        printer.print_record({tab_name, "unique", ss.str()}, context);
+    }
 }
