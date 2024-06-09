@@ -29,7 +29,7 @@ private:
     IndexMeta index_meta_;                      // index scan涉及到的索引元数据
 
     Rid rid_;
-    std::unique_ptr<RecScan> scan_;
+    std::unique_ptr<IxScan> scan_;
     IxIndexHandle *ih_;
 
     SmManager *sm_manager_;
@@ -52,6 +52,7 @@ public:
         ih_ = sm_manager_->ihs_.at(index_name).get();
         cols_ = tab_.cols;
         len_ = cols_.back().offset + cols_.back().len;
+
         std::map<CompOp, CompOp> swap_op = {
                 {OP_EQ, OP_EQ},
                 {OP_NE, OP_NE},
@@ -72,13 +73,14 @@ public:
 
         is_end_ = false;
 
-        // index scan加S锁
-        if (context_ != nullptr) {
-            context_->lock_mgr_->lock_shared_on_table(context_->txn_, fh_->GetFd());
-        }
+        // IS
+        context_->lock_mgr_->lock_IS_on_table(context_->txn_, fh_->GetFd());
     }
 
     void beginTuple() override {
+        // S
+        context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
+
         RmRecord lower_key(index_meta_.col_tot_len), upper_key(index_meta_.col_tot_len);
 
         size_t offset = 0;
@@ -114,7 +116,7 @@ public:
                 }
             }
 
-            for (auto cond: fedConditions) {
+            for (const auto &cond: fedConditions) {
                 if (cond.lhs_col.col_name == col.name && cond.is_rhs_val) {
                     switch (cond.op) {
                         case OP_EQ: {
@@ -126,26 +128,20 @@ public:
                             }
                             break;
                         }
-                            // >/>= rhs_val，更新tmp_min
-                        case OP_GT: {
-                        }
+                        case OP_GT:
                         case OP_GE: {
                             if (cond.rhs_val > tmp_min) {
                                 tmp_min = cond.rhs_val;
                             }
                             break;
                         }
-                            // </<= rhs_val，更新tmp_max
-                        case OP_LT: {
-                        }
+                        case OP_LT:
                         case OP_LE: {
                             if (cond.rhs_val < tmp_max) {
                                 tmp_max = cond.rhs_val;
                             }
                             break;
                         }
-                            // != rhs_val，不做处理
-                        case OP_NE:
                         default:
                             break;
                     }
@@ -184,15 +180,18 @@ public:
                 }
             }
             if (is_fit) {
-                break;
+                return;
             } else {
                 scan_->next();
             }
         }
+        is_end_ = true;
     }
 
     void nextTuple() override {
-        assert(!is_end());
+        if (is_end()) {
+            return;
+        }
         scan_->next();
         while (!scan_->is_end()) {
             rid_ = scan_->rid();
@@ -215,15 +214,18 @@ public:
                 }
             }
             if (is_fit) {
-                break;
+                return;
             } else {
                 scan_->next();
             }
         }
+        is_end_ = true;
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        assert(!is_end());
+        if (is_end()) {
+            return nullptr;
+        }
         return fh_->get_record(rid_, context_);
     }
 
@@ -237,5 +239,5 @@ public:
 
     std::string getType() override { return "IndexScanExecutor"; };
 
-    bool is_end() const override { return scan_->is_end(); };
+    bool is_end() const override { return is_end_; };
 };

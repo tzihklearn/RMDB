@@ -10,7 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include <stdio.h>
+#include <cstdio>
 #include "execution_defs.h"
 #include "execution_manager.h"
 #include "executor_abstract.h"
@@ -25,6 +25,7 @@ private:
     std::string tab_name_;          // 表名称
     Rid rid_;                       // 插入的位置，由于系统默认插入时不指定位置，因此当前rid_在插入后才赋值
     SmManager *sm_manager_;
+    Context *context_;
 
 public:
     InsertExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<Value> values, Context *context) {
@@ -38,13 +39,14 @@ public:
         fh_ = sm_manager_->fhs_.at(tab_name).get();
         context_ = context;
 
-        // insert加IX锁
-        if (context_ != nullptr) {
-            context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
-        }
-    };
+        // IX
+        context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
+    }
 
     std::unique_ptr<RmRecord> Next() override {
+        // X
+        context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid_, fh_->GetFd());
+
         RmRecord rec(fh_->get_file_hdr().record_size);
 
         // 构建记录
@@ -58,14 +60,15 @@ public:
             memcpy(rec.data + col.offset, val.raw->data, col.len);
         }
 
+        // 插入记录到文件
+        rid_ = fh_->insert_record(rec.data, context_);
+
         // 记录事务日志
         Transaction *txn = context_->txn_;
         auto *insert_log = new InsertLogRecord(txn->get_transaction_id(), rec, rid_, tab_name_);
         insert_log->prev_lsn_ = txn->get_prev_lsn();
         txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(insert_log));
 
-        // 插入记录到文件
-        rid_ = fh_->insert_record(rec.data, context_);
         auto *write_rcd = new TableWriteRecord(WType::INSERT_TUPLE, tab_name_, rid_);
         context_->txn_->append_table_write_record(write_rcd);
 
@@ -90,6 +93,7 @@ public:
         } catch (InternalError &error) {
             // 回滚操作
             fh_->delete_record(rid_, context_);
+            context_->txn_->set_state(TransactionState::ABORTED);  // 将事务状态设置为已中止
             throw InternalError("Non-unique index!");
         }
 

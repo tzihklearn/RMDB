@@ -182,7 +182,7 @@ struct std::hash<LockDataId> {
 
 /* 事务回滚原因 */
 enum class AbortReason {
-    LOCK_ON_SHIRINKING = 0, UPGRADE_CONFLICT, DEADLOCK_PREVENTION
+    LOCK_ON_SHRINKING = 0, UPGRADE_CONFLICT, DEADLOCK_PREVENTION
 };
 
 /* 事务回滚异常，在rmdb.cpp中进行处理 */
@@ -200,7 +200,7 @@ public:
 
     std::string GetInfo() {
         switch (abort_reason_) {
-            case AbortReason::LOCK_ON_SHIRINKING: {
+            case AbortReason::LOCK_ON_SHRINKING: {
                 return "Transaction " + std::to_string(txn_id_) +
                        " aborted because it cannot request locks on SHRINKING phase\n";
             }

@@ -18,17 +18,18 @@ See the Mulan PSL v2 for more details. */
 
 class SeqScanExecutor : public AbstractExecutor {
 private:
-    std::string tab_name_;              // 表的名称
-    std::vector<Condition> conditions_;      // scan的条件
-    RmFileHandle *fh_;                  // 表的数据文件句柄
-    std::vector<ColMeta> cols_;         // scan后生成的记录的字段
-    size_t len_;                        // scan后生成的每条记录的长度
+    std::string tab_name_;                 // 表的名称
+    std::vector<Condition> conditions_;    // scan的条件
+    RmFileHandle *fh_;                     // 表的数据文件句柄
+    std::vector<ColMeta> cols_;            // scan后生成的记录的字段
+    size_t len_;                           // scan后生成的每条记录的长度
     std::vector<Condition> fedConditions;  // 同Condition，两个字段相同
 
     Rid rid_;
-    std::unique_ptr<RecScan> scan_;     // table_iterator
+    std::unique_ptr<RecScan> scan_;        // table_iterator
 
     SmManager *sm_manager_;
+    Context *context_;
 
 public:
     SeqScanExecutor(SmManager *sm_manager, std::string tab_name, std::vector<Condition> conds, Context *context) {
@@ -44,25 +45,25 @@ public:
 
         fedConditions = conditions_;
 
-        // sequential scan加S锁
+        // IS
         if (context != nullptr) {
-            context->lock_mgr_->lock_shared_on_table(context->txn_, fh_->GetFd());
+            context->lock_mgr_->lock_IS_on_table(context->txn_, fh_->GetFd());
         }
     }
 
     bool is_fed_cond(const std::vector<ColMeta> &rec_cols, const Condition &cond, const RmRecord *target) {
-        // 1. 获取左操作数的colMeta
+        // 获取左操作数的colMeta
         auto lhsCol = cond.lhs_col;
         auto lhsColMeta = *get_col(rec_cols, lhsCol);
 
-        // 2. 如果右操作数是Col类型，获取右操作数的ColMeta
+        // 如果右操作数是Col类型，获取右操作数的ColMeta
         ColMeta rhsColMeta;
         if (!cond.is_rhs_val && !cond.is_rhs_in) {
             auto rhsCol = cond.rhs_col;
             rhsColMeta = *get_col(rec_cols, rhsCol);
         }
 
-        // 3. 比较lhs和rhs的值
+        // 比较lhs和rhs的值
         auto rmRecord = std::make_unique<RmRecord>(*target);
         auto lhsVal = fetch_value(rmRecord, lhsColMeta);
         Value rhsVal;
@@ -93,15 +94,18 @@ public:
     }
 
     void beginTuple() override {
-        // 1. 获取一个RmScan对象的指针,赋值给算子的变量scan_
+        // S
+        context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
+
+        // 获取一个RmScan对象的指针,赋值给算子的变量scan_
         scan_ = std::make_unique<RmScan>(fh_);
 
-        // 2. 用seq_scan来对表中的所有非空闲字段进行遍历，逐个判断是否满足所有条件
+        // 用seq_scan来对表中的所有非空闲字段进行遍历，逐个判断是否满足所有条件
         while (!scan_->is_end()) {
-            // 2.1 通过RmFileHandle获取到seq_scan扫描到的record并封装为RmRecord对象
+            // 通过RmFileHandle获取到seq_scan扫描到的record并封装为RmRecord对象
             auto record = fh_->get_record(scan_->rid(), context_);
 
-            // 2.2 检查是否满足所有条件
+            // 检查是否满足所有条件
             if (record_satisfies_conditions(cols_, fedConditions, record.get())) {
                 rid_ = scan_->rid();
                 break;
@@ -112,13 +116,16 @@ public:
     }
 
     void nextTuple() override {
+        // S
+        context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
+
         assert(!is_end());
-        // 1. 继续查询下一个满足conds的record
+        // 继续查询下一个满足conds的record
         for (scan_->next(); !scan_->is_end(); scan_->next()) {
-            // 1.1 通过RmFileHandle获取到seq_scan扫描到的record并封装为RmRecord对象
+            // 通过RmFileHandle获取到seq_scan扫描到的record并封装为RmRecord对象
             auto record = fh_->get_record(scan_->rid(), context_);
 
-            // 1.2 检查是否满足所有条件
+            // 检查是否满足所有条件
             if (record_satisfies_conditions(cols_, fedConditions, record.get())) {
                 rid_ = scan_->rid();
                 break;
@@ -127,6 +134,9 @@ public:
     }
 
     std::unique_ptr<RmRecord> Next() override {
+        if (is_end()) {
+            return nullptr;
+        }
         return fh_->get_record(rid_, context_);
     }
 
@@ -136,5 +146,5 @@ public:
 
     const std::vector<ColMeta> &cols() const override { return cols_; }
 
-    size_t tupleLen() const override { return len_; };
+    size_t tupleLen() const override { return len_; }
 };
