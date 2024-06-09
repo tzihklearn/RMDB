@@ -47,4 +47,5 @@ class QlManager {
                         Context *context);
 
     void run_dml(std::unique_ptr<AbstractExecutor> exec);
+    std::vector<Value> sub_select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot);
 };

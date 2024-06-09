@@ -173,8 +173,6 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             columns.push_back(col_str);
         }
         // print record into buffer
-        int a = sel_cols.size();
-        int b = columns.size();
         rec_printer.print_record(columns, context);
         // print record into file
         outfile << "|";
@@ -197,4 +195,45 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
 // 执行DML语句
 void QlManager::run_dml(std::unique_ptr<AbstractExecutor> exec) {
     exec->Next();
+}
+
+std::vector<Value> QlManager::sub_select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot) {
+    std::vector<Value> values;
+    for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
+        auto Tuple = executorTreeRoot->Next();
+        for (auto &col: executorTreeRoot->cols()) {
+            Value value;
+
+            char *rec_buf = Tuple->data + col.offset;
+            switch (col.type) {
+                case TYPE_INT: {
+                    int int_value = *reinterpret_cast<int *>(rec_buf);
+                    value.set_int(int_value);
+                    value.init_raw(sizeof(int));
+                    break;
+                }
+                case TYPE_FLOAT: {
+                    float float_value = *reinterpret_cast<float *>(rec_buf);
+                    value.set_float(float_value);
+                    value.init_raw(sizeof(float));
+                    break;
+                }
+                case TYPE_STRING: {
+                    std::string col_str;
+                    col_str = std::string((char *) rec_buf, col.len);
+                    col_str.resize(strlen(col_str.c_str()));
+//                    std::string str_value(rec_buf, col.len);
+                    value.set_str(col_str);
+                    value.init_raw(sizeof(col_str));
+                    break;
+                }
+                default: {
+                    throw InvalidTypeError();
+                }
+            }
+            values.push_back(value);
+        }
+
+    }
+    return values;
 }

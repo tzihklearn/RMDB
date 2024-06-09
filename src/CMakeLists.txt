@@ -13,12 +13,12 @@ add_subdirectory(replacer)
 add_subdirectory(transaction)
 add_subdirectory(recovery)
 add_subdirectory(test)
-
+add_subdirectory(global_object)
 
 target_link_libraries(parser execution pthread)
 
 add_executable(rmdb rmdb.cpp)
-target_link_libraries(rmdb parser execution readline pthread planner analyze)
+target_link_libraries(rmdb global_object parser execution readline pthread planner analyze)
 
 # unit_test
 add_executable(unit_test unit_test.cpp)

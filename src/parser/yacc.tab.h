@@ -35,8 +35,8 @@
    especially those whose name start with YY_ or yy_.  They are
    private implementation details that can be changed or removed.  */
 
-#ifndef YY_YY_USERS_WEIBINGRUI_DESKTOP_DB2024_X_SRC_PARSER_YACC_TAB_H_INCLUDED
-# define YY_YY_USERS_WEIBINGRUI_DESKTOP_DB2024_X_SRC_PARSER_YACC_TAB_H_INCLUDED
+#ifndef YY_YY_HOME_TZIH_CLIONPROJECTS_DB2024_X_SRC_PARSER_YACC_TAB_H_INCLUDED
+# define YY_YY_HOME_TZIH_CLIONPROJECTS_DB2024_X_SRC_PARSER_YACC_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -91,19 +91,20 @@ extern int yydebug;
     ENABLE_SORTMERGE = 292,        /* ENABLE_SORTMERGE  */
     GROUP_BY = 293,                /* GROUP_BY  */
     HAVING = 294,                  /* HAVING  */
-    LEQ = 295,                     /* LEQ  */
-    NEQ = 296,                     /* NEQ  */
-    GEQ = 297,                     /* GEQ  */
-    T_EOF = 298,                   /* T_EOF  */
-    COUNT = 299,                   /* COUNT  */
-    MAX = 300,                     /* MAX  */
-    MIN = 301,                     /* MIN  */
-    SUM = 302,                     /* SUM  */
-    IDENTIFIER = 303,              /* IDENTIFIER  */
-    VALUE_STRING = 304,            /* VALUE_STRING  */
-    VALUE_INT = 305,               /* VALUE_INT  */
-    VALUE_FLOAT = 306,             /* VALUE_FLOAT  */
-    VALUE_BOOL = 307               /* VALUE_BOOL  */
+    IN = 295,                      /* IN  */
+    LEQ = 296,                     /* LEQ  */
+    NEQ = 297,                     /* NEQ  */
+    GEQ = 298,                     /* GEQ  */
+    T_EOF = 299,                   /* T_EOF  */
+    COUNT = 300,                   /* COUNT  */
+    MAX = 301,                     /* MAX  */
+    MIN = 302,                     /* MIN  */
+    SUM = 303,                     /* SUM  */
+    IDENTIFIER = 304,              /* IDENTIFIER  */
+    VALUE_STRING = 305,            /* VALUE_STRING  */
+    VALUE_INT = 306,               /* VALUE_INT  */
+    VALUE_FLOAT = 307,             /* VALUE_FLOAT  */
+    VALUE_BOOL = 308               /* VALUE_BOOL  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -130,4 +131,4 @@ struct YYLTYPE
 int yyparse (void);
 
 
-#endif /* !YY_YY_USERS_WEIBINGRUI_DESKTOP_DB2024_X_SRC_PARSER_YACC_TAB_H_INCLUDED  */
+#endif /* !YY_YY_HOME_TZIH_CLIONPROJECTS_DB2024_X_SRC_PARSER_YACC_TAB_H_INCLUDED  */

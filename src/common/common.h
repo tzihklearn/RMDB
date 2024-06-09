@@ -50,6 +50,8 @@ struct Value {
 
     std::shared_ptr<RmRecord> raw;  // raw record buffer
 
+    bool is_null = false;
+
     void set_int(int int_val_) {
         type = TYPE_INT;
         int_val = int_val_;
@@ -101,6 +103,9 @@ struct Value {
 
     // 重载value的比较运算符 > < == != >= <=
     bool operator>(const Value &rhs) const {
+        if (is_null) {
+            return false;
+        }
         if (!checkType(type, rhs.type)) {
             throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
         }
@@ -125,6 +130,9 @@ struct Value {
     }
 
     bool operator<(const Value &rhs) const {
+        if (is_null) {
+            return false;
+        }
         if (!checkType(type, rhs.type)) {
             throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
         }
@@ -150,6 +158,9 @@ struct Value {
     }
 
     bool operator==(const Value &rhs) const {
+        if (is_null) {
+            return false;
+        }
         if (!checkType(type, rhs.type)) {
             return false;
         }
@@ -175,10 +186,16 @@ struct Value {
     }
 
     bool operator!=(const Value &rhs) const {
+        if (is_null) {
+            return false;
+        }
         return !(*this == rhs);
     }
 
     bool operator>=(const Value &rhs) const {
+        if (is_null) {
+            return false;
+        }
         if (!checkType(type, rhs.type)) {
             throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
         }
@@ -204,6 +221,9 @@ struct Value {
     }
 
     bool operator<=(const Value &rhs) const {
+        if (is_null) {
+            return false;
+        }
         if (!checkType(type, rhs.type)) {
             throw IncompatibleTypeError(coltype2str(type), coltype2str(rhs.type));
         }
@@ -230,7 +250,7 @@ struct Value {
 };
 
 enum CompOp {
-    OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE
+    OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE, OP_IN
 };
 
 struct Condition {
@@ -239,6 +259,8 @@ struct Condition {
     bool is_rhs_val;  // true if right-hand side is a value (not a column)
     TabCol rhs_col;   // right-hand side column
     Value rhs_val;    // right-hand side value
+    bool is_rhs_in;   // true if right-hand side is a list of values
+    std::vector<Value> rhs_in_vals;    // right-hand side value list for IN operator
 };
 
 struct SetClause {

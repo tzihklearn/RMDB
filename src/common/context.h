@@ -27,6 +27,7 @@ public:
           data_send_(data_send), offset_(offset) {
             ellipsis_ = false;
           }
+    Context(){}
 
     // TransactionManager *txn_mgr_;
     LockManager *lock_mgr_;

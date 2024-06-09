@@ -23,7 +23,7 @@ using namespace ast;
 // keywords
 %token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY AS GROUP
 WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
-GROUP_BY HAVING
+GROUP_BY HAVING IN
 
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
@@ -60,6 +60,10 @@ GROUP_BY HAVING
 %type <sv_aggregate_type> AGGREGATE_SUM AGGREGATE_COUNT AGGREGATE_MAX AGGREGATE_MIN
 %type <sv_group_by> group_by
 %type <sv_group_by_col> group_by_col
+
+%type <sub_select_stmt> sub_select_stmt
+%type <in_op_value> in_op_vlaue
+%type <in_sub_query> in_sub_query
 
 %%
 start:
@@ -252,6 +256,14 @@ condition:
     {
         $$ = std::make_shared<BinaryExpr>($1, $2, $3);
     }
+    |   col op '(' expr ')'
+    {
+    	$$ = std::make_shared<BinaryExpr>($1, $2, $4);
+    }
+    |   col IN '(' in_sub_query ')'
+    {
+    	$$ = std::make_shared<BinaryExpr>($1, SV_OP_IN, $4);
+    }
     ;
 
 optWhereClause:
@@ -263,7 +275,7 @@ optWhereClause:
     ;
 
 whereClause:
-        condition 
+        condition
     {
         $$ = std::vector<std::shared_ptr<BinaryExpr>>{$1};
     }
@@ -371,6 +383,35 @@ expr:
     {
         $$ = std::static_pointer_cast<Expr>($1);
     }
+    |  sub_select_stmt
+    {
+    	$$ = std::static_pointer_cast<Expr>($1);
+    }
+    ;
+
+sub_select_stmt:
+	SELECT colList FROM tableList optWhereClause opt_order_clause group_by_col
+    {
+        $$ = std::make_shared<SubSelectStmt>($2, $4, $5, $6, $7);
+    }
+    ;
+
+in_op_vlaue:
+       valueList
+    {
+        $$ = std::make_shared<InOpValue>($1);
+    }
+    ;
+
+in_sub_query:
+	   sub_select_stmt
+    {
+	$$ = std::static_pointer_cast<Expr>($1);
+    }
+    |      in_op_vlaue
+    {
+    	$$ = std::static_pointer_cast<Expr>($1);
+    }
     ;
 
 setClauses:
@@ -467,25 +508,25 @@ tableList:
     ;
 
 opt_order_clause:
-    ORDER BY order_clause      
-    { 
-        $$ = $3; 
+    ORDER BY order_clause
+    {
+        $$ = $3;
     }
     |   /* epsilon */ { /* ignore*/ }
     ;
 
 order_clause:
-      col  opt_asc_desc 
-    { 
+      col  opt_asc_desc
+    {
         $$ = std::make_shared<OrderBy>($1, $2);
     }
-    ;   
+    ;
 
 opt_asc_desc:
     ASC          { $$ = OrderBy_ASC;     }
     |  DESC      { $$ = OrderBy_DESC;    }
     |       { $$ = OrderBy_DEFAULT; }
-    ;    
+    ;
 
 set_knob_type:
     ENABLE_NESTLOOP { $$ = EnableNestLoop; }

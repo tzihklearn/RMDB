@@ -57,7 +57,7 @@ public:
 
         // 2. 如果右操作数是Col类型，获取右操作数的ColMeta
         ColMeta rhsColMeta;
-        if (!cond.is_rhs_val) {
+        if (!cond.is_rhs_val && !cond.is_rhs_in) {
             auto rhsCol = cond.rhs_col;
             rhsColMeta = *get_col(rec_cols, rhsCol);
         }
@@ -68,11 +68,20 @@ public:
         Value rhsVal;
         if (cond.is_rhs_val) {
             rhsVal = cond.rhs_val;
-        } else {
+        } else if (!cond.is_rhs_in){
             rhsVal = fetch_value(rmRecord, rhsColMeta);
         }
 
-        return compare_value(lhsVal, rhsVal, cond.op);
+        if (cond.is_rhs_in) {
+            for (const auto &rhs_val: cond.rhs_in_vals) {
+                if (compare_value(lhsVal, rhs_val, OP_EQ)) {
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            return compare_value(lhsVal, rhsVal, cond.op);
+        }
     }
 
     // 判断记录是否满足所有条件

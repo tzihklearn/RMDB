@@ -173,6 +173,14 @@ public:
                 if (fedCond.is_rhs_val && !compare_value(value, fedCond.rhs_val, fedCond.op)) {
                     is_fit = false;
                     break;
+                } else if (fedCond.is_rhs_in) {
+                    is_fit = false;
+                    for (const auto &rhs_val: fedCond.rhs_in_vals) {
+                        if (compare_value(value, rhs_val, OP_EQ)) {
+                            is_fit = true;
+                            break;
+                        }
+                    }
                 }
             }
             if (is_fit) {
@@ -196,6 +204,14 @@ public:
                 if (fedCond.is_rhs_val && !compare_value(value, fedCond.rhs_val, fedCond.op)) {
                     is_fit = false;
                     break;
+                } else if (fedCond.is_rhs_in) {
+                    is_fit = false;
+                    for (const auto &rhs_val: fedCond.rhs_in_vals) {
+                        if (compare_value(value, rhs_val, OP_EQ)) {
+                            is_fit = true;
+                            break;
+                        }
+                    }
                 }
             }
             if (is_fit) {
