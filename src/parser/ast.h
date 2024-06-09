@@ -24,7 +24,7 @@ enum SvType {
 };
 
 enum SvCompOp {
-    SV_OP_EQ, SV_OP_NE, SV_OP_LT, SV_OP_GT, SV_OP_LE, SV_OP_GE
+    SV_OP_EQ, SV_OP_NE, SV_OP_LT, SV_OP_GT, SV_OP_LE, SV_OP_GE, SV_OP_IN
 };
 
 enum OrderByDir {
@@ -262,6 +262,40 @@ struct SelectStmt : public TreeNode {
                 has_ag = (bool)group_by_col;
             }
 };
+struct SubSelectStmt : public Expr {
+    std::vector<std::shared_ptr<Col>> cols;
+    std::vector<std::string> tabs;
+    std::vector<std::shared_ptr<BinaryExpr>> conds;
+    std::vector<std::shared_ptr<JoinExpr>> jointree;
+
+    bool has_sort;
+    std::shared_ptr<OrderBy> order;
+    bool  has_ag;
+    std::shared_ptr<GroupBy> group_by_col;
+
+    SubSelectStmt(std::vector<std::shared_ptr<Col>> cols_,
+                  std::vector<std::string> tabs_,
+                  std::vector<std::shared_ptr<BinaryExpr>> conds_,
+                  std::shared_ptr<OrderBy> order_,
+                  std::shared_ptr<GroupBy> group_by_col_):
+                cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)),
+                order(std::move(order_)), group_by_col(std::move(group_by_col_)) {
+                    has_sort = (bool)order;
+                    has_ag = (bool)group_by_col;
+                }
+    SelectStmt convert_to_select() {
+        SelectStmt s = SelectStmt(cols, tabs, conds, order, group_by_col);
+        s.has_sort = has_sort;
+        s.has_ag = has_ag;
+        s.jointree = std::move(jointree);
+        return s;
+    }
+};
+
+struct InOpValue : public Expr {
+    std::vector<std::shared_ptr<Value>> values;
+    InOpValue(std::vector<std::shared_ptr<Value>> values_) : values(std::move(values_)) {}
+};
 
 // set enable_nestloop
 struct SetStmt : public TreeNode {
@@ -313,6 +347,10 @@ struct SemValue {
     std::shared_ptr<OrderBy> sv_orderby;
 
     SetKnobType sv_setKnobType;
+
+    std::shared_ptr<SubSelectStmt> sub_select_stmt;
+    std::shared_ptr<InOpValue> in_op_value;
+    std::shared_ptr<Expr> in_sub_query;
 };
 
 extern std::shared_ptr<ast::TreeNode> parse_tree;

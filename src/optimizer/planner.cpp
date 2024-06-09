@@ -80,7 +80,8 @@ std::vector<Condition> pop_conds(std::vector<Condition> &conditions, std::string
     std::vector<Condition> solvedConditions;
     auto it = conditions.begin();
     while (it != conditions.end()) {
-        if ((tab_names.compare(it->lhs_col.tab_name) == 0 && it->is_rhs_val) ||
+        // 将该条件添加到条件列表，如果该条件的左操作数的表名与当前表名相同
+        if ((tab_names.compare(it->lhs_col.tab_name) == 0 && (it->is_rhs_val || it->is_rhs_in)) ||
             (it->lhs_col.tab_name.compare(it->rhs_col.tab_name) == 0)) {
             solvedConditions.emplace_back(std::move(*it));
             it = conditions.erase(it);
@@ -125,6 +126,7 @@ int push_conds(Condition *cond, std::shared_ptr<Plan> plan) {
                     {OP_GT, OP_LT},
                     {OP_LE, OP_GE},
                     {OP_GE, OP_LE},
+                    {OP_IN, OP_IN},
             };
             std::swap(cond->lhs_col, cond->rhs_col);
             cond->op = swap_op.at(cond->op);
@@ -250,6 +252,7 @@ std::shared_ptr<Plan> Planner::make_one_rel(std::shared_ptr<Query> query) {
                             {OP_GT, OP_LT},
                             {OP_LE, OP_GE},
                             {OP_GE, OP_LE},
+                            {OP_IN, OP_IN},
                     };
                     std::swap(it->lhs_col, it->rhs_col);
                     it->op = swap_op.at(it->op);

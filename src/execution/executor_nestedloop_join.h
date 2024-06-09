@@ -118,15 +118,24 @@ public:
                     Value rightValue;
                     if (condition.is_rhs_val) {
                         rightValue = condition.rhs_val;
-                    } else {
+                    } else if (!condition.is_rhs_in){
                         auto rightCol = *(right_->get_col(rightCols, condition.rhs_col));
                         rightValue = fetch_value(rightRecord, rightCol);
                     }
                     // 比较是否符合条件
-                    if (!compare_value(leftValue, rightValue, condition.op)) {
+                    if (condition.is_rhs_in) {
+                        for (const auto &rhs_val: condition.rhs_in_vals) {
+                            isFit = false;
+                            if (compare_value(leftValue, rhs_val, OP_EQ)) {
+                                isFit = true;
+                                break;
+                            }
+                        }
+                    } else if (!compare_value(leftValue, rightValue, condition.op)) {
                         isFit = false;
                         break;
                     }
+
                 }
                 // 符合条件直接跳出
                 if (isFit) {

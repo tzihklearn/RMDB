@@ -92,6 +92,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "AS" { return AS; }
 "GROUP" {return GROUP;}
 "HAVING" {return HAVING;}
+"IN" {return IN;}
 "ENABLE_NESTLOOP" { return ENABLE_NESTLOOP; }
 "ENABLE_SORTMERGE" { return ENABLE_SORTMERGE; }
 "TRUE" { 
@@ -106,6 +107,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 ">=" { return GEQ; }
 "<=" { return LEQ; }
 "<>" { return NEQ; }
+"!=" { return NEQ; }
 {single_op} { return yytext[0]; }
     /* id */
 {identifier} {

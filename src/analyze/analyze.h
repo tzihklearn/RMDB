@@ -51,14 +51,16 @@ public:
     Analyze(SmManager *sm_manager) : sm_manager_(sm_manager){}
     ~Analyze(){}
 
-    std::shared_ptr<Query> do_analyze(std::shared_ptr<ast::TreeNode> root);
+    std::shared_ptr<Query> do_analyze(std::shared_ptr<ast::TreeNode> root, Context *context);
 
 private:
     TabCol check_column(const std::vector<ColMeta> &all_cols, TabCol target);
     void get_all_cols(const std::vector<std::string> &tab_names, std::vector<ColMeta> &all_cols);
-    void get_clause(const std::vector<std::shared_ptr<ast::BinaryExpr>> &sv_conds, std::vector<Condition> &conds);
+    void get_clause(const std::vector<std::shared_ptr<ast::BinaryExpr>> &sv_conds, std::vector<Condition> &conds, Context *context, std::string tab_name);
     void check_clause(const std::vector<std::string> &tab_names, std::vector<Condition> &conds);
     Value convert_sv_value(const std::shared_ptr<ast::Value> &sv_val);
     CompOp convert_sv_comp_op(ast::SvCompOp op);
     AggregateOp convert_sv_aggregate_op(ast::SvAggregateType type);
+    std::vector<Value> sub_query_execution(std::shared_ptr<ast::SubSelectStmt> sub_select_stmt, Context *context);
+    std::shared_ptr<Query> do_sub_query_analyze(std::shared_ptr<ast::SubSelectStmt> x, Context *context);
 };
