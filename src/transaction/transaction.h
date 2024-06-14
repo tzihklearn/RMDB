@@ -27,6 +27,7 @@ public:
             : state_(TransactionState::DEFAULT), isolation_level_(isolation_level), txn_id_(txn_id) {
         table_write_set_ = std::make_shared<std::deque<TableWriteRecord *>>();
         index_write_set_ = std::make_shared<std::deque<IndexWriteRecord *>>();
+        index_create_set_ = std::make_shared<std::deque<IndexCreateRecord *>>();
         lock_set_ = std::make_shared<std::unordered_set<LockDataId>>();
         index_latch_page_set_ = std::make_shared<std::deque<Page *>>();
         index_deleted_page_set_ = std::make_shared<std::deque<Page *>>();
@@ -70,6 +71,12 @@ public:
 
     inline void append_index_deleted_page(Page *page) { index_deleted_page_set_->push_back(page); }
 
+    inline std::shared_ptr<std::deque<IndexCreateRecord *>> get_index_create_page_set() { return index_create_set_; }
+
+    inline void append_index_create_record(IndexCreateRecord *create_record) {
+        index_create_set_->push_back(create_record);
+    }
+
     inline std::shared_ptr<std::deque<Page *>> get_index_latch_page_set() { return index_latch_page_set_; }
 
     inline void append_index_latch_page_set(Page *page) { index_latch_page_set_->push_back(page); }
@@ -87,6 +94,7 @@ private:
 
     std::shared_ptr<std::deque<TableWriteRecord *>> table_write_set_;  // 事务包含的table所有写操作
     std::shared_ptr<std::deque<IndexWriteRecord *>> index_write_set_;  // 事务包含的index所有写操作
+    std::shared_ptr<std::deque<IndexCreateRecord *>> index_create_set_;  // 事务包含的index创建所有写操作
     std::shared_ptr<std::unordered_set<LockDataId>> lock_set_;  // 事务申请的所有锁
     std::shared_ptr<std::deque<Page *>> index_latch_page_set_;          // 维护事务执行过程中加锁的索引页面
     std::shared_ptr<std::deque<Page *>> index_deleted_page_set_;    // 维护事务执行过程中删除的索引页面

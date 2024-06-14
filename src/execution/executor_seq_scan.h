@@ -29,7 +29,6 @@ private:
     std::unique_ptr<RecScan> scan_;        // table_iterator
 
     SmManager *sm_manager_;
-    Context *context_;
 
 public:
     SeqScanExecutor(SmManager *sm_manager, std::string tab_name, std::vector<Condition> conds, Context *context) {
@@ -45,9 +44,9 @@ public:
 
         fedConditions = conditions_;
 
-        // IS
+        // 申请表级共享锁（S）
         if (context != nullptr) {
-            context->lock_mgr_->lock_IS_on_table(context->txn_, fh_->GetFd());
+            context->lock_mgr_->lock_shared_on_table(context->txn_, fh_->GetFd());
         }
     }
 
@@ -69,7 +68,7 @@ public:
         Value rhsVal;
         if (cond.is_rhs_val) {
             rhsVal = cond.rhs_val;
-        } else if (!cond.is_rhs_in){
+        } else if (!cond.is_rhs_in) {
             rhsVal = fetch_value(rmRecord, rhsColMeta);
         }
 
@@ -94,9 +93,6 @@ public:
     }
 
     void beginTuple() override {
-        // S
-        context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
-
         // 获取一个RmScan对象的指针,赋值给算子的变量scan_
         scan_ = std::make_unique<RmScan>(fh_);
 
@@ -108,6 +104,8 @@ public:
             // 检查是否满足所有条件
             if (record_satisfies_conditions(cols_, fedConditions, record.get())) {
                 rid_ = scan_->rid();
+                // 申请行级共享锁（S）
+//                context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
                 break;
             }
 
@@ -116,8 +114,8 @@ public:
     }
 
     void nextTuple() override {
-        // S
-        context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
+        // 申请行级共享锁（S）
+//        context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
 
         assert(!is_end());
         // 继续查询下一个满足conds的record

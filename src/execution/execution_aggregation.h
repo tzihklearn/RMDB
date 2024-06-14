@@ -72,18 +72,15 @@ public:
 
     Rid &rid() override { return _abstract_rid; }
 
-    std::string getType() { return "AggregationExecutor"; };
+    std::string getType() override { return "AggregationExecutor"; };
 
     void beginTuple() override {
 
         std::map<Value, std::vector<Rid>> group_by_map;
         if (group_by_col.operator bool()) {
-            // group by
-//            if (group_by_col->op == AG_NULL) {
             auto col_meta = tableMeta.get_col(group_by_col->tab_col.col_name);
             int offset = col_meta->offset;
             int len = col_meta->len;
-            int a = rids.size();
             for (const auto &rid: rids) {
                 auto rec = fh->get_record(rid, context_);
                 char *data = rec->data + offset;
@@ -116,7 +113,7 @@ public:
 
             if (!group_by_col->having_metes.empty()) {
 
-                for(auto it = group_by_map.begin(); it != group_by_map.end();) {
+                for (auto it = group_by_map.begin(); it != group_by_map.end();) {
                     std::vector<Rid> rids = it->second;
                     bool op_r;
                     for (const auto &havingMete: group_by_col->having_metes) {
@@ -227,7 +224,7 @@ public:
                                             }
                                         }
                                         val.set_str(min_value);
-                                        val.init_raw(sizeof(min_value));
+                                        val.init_raw(min_value.size());
                                         break;
                                     }
                                     default: {
@@ -306,7 +303,8 @@ public:
                                 op_r = val >= havingMete.rhs_val;
                                 break;
                             default:
-                                throw IncompatibleTypeError(coltype2str(val.type), coltype2str(havingMete.rhs_val.type));
+                                throw IncompatibleTypeError(coltype2str(val.type),
+                                                            coltype2str(havingMete.rhs_val.type));
                         }
                         if (!op_r) {
                             it = group_by_map.erase(it);
@@ -356,13 +354,6 @@ public:
             Value val;
             switch (aggregateMeta.op) {
                 case AG_COUNT: {
-//                    // 处理count元组数量
-//                    if (aggregateMeta.table_column.col_name.empty()) {
-//                        val.set_int(tableMeta.cols.size());
-//                        val.init_raw(sizeof (int));
-//                    } else {
-//
-//                    }
                     // todo: 待处理count(*)和count(col_name)，现在统一按照count(*)处理
                     val.set_int(rids.size());
                     val.init_raw(sizeof(int));
@@ -467,7 +458,7 @@ public:
                                 }
                             }
                             val.set_str(min_value);
-                            val.init_raw(sizeof(min_value));
+                            val.init_raw(min_value.size());
                             break;
                         }
                         default: {
@@ -542,7 +533,7 @@ public:
         return is_end_;
     };
 
-    const std::vector<ColMeta> &cols() const {
+    const std::vector<ColMeta> &cols() const override {
         return outputColumnMetas;
     };
 };

@@ -36,6 +36,7 @@ pthread_mutex_t *buffer_mutex;
 pthread_mutex_t *sockfd_mutex;
 
 static jmp_buf jmpbuf;
+
 void sigint_handler(int signo) {
     should_exit = true;
     log_manager->flush_buffer_to_disk();
@@ -46,7 +47,7 @@ void sigint_handler(int signo) {
 // 判断当前正在执行的是显式事务还是单条SQL语句的事务，并更新事务ID
 void SetTransaction(txn_id_t *txn_id, Context *context) {
     context->txn_ = txn_manager->get_transaction(*txn_id);
-    if(context->txn_ == nullptr || context->txn_->get_state() == TransactionState::COMMITTED ||
+    if (context->txn_ == nullptr || context->txn_->get_state() == TransactionState::COMMITTED ||
         context->txn_->get_state() == TransactionState::ABORTED) {
         context->txn_ = txn_manager->begin(nullptr, context->log_mgr_);
         *txn_id = context->txn_->get_transaction_id();
@@ -55,7 +56,7 @@ void SetTransaction(txn_id_t *txn_id, Context *context) {
 }
 
 void *client_handler(void *sock_fd) {
-    int fd = *((int *)sock_fd);
+    int fd = *((int *) sock_fd);
     pthread_mutex_unlock(sockfd_mutex);
 
     int i_recvBytes;
@@ -150,13 +151,13 @@ void *client_handler(void *sock_fd) {
 
                     // 将报错信息写入output.txt
                     std::fstream outfile;
-                    outfile.open("output.txt",std::ios::out | std::ios::app);
+                    outfile.open("output.txt", std::ios::out | std::ios::app);
                     outfile << "failure\n";
                     outfile.close();
                 }
             }
         }
-        if(!finish_analyze) {
+        if (!finish_analyze) {
             yy_delete_buffer(buf);
             pthread_mutex_unlock(buffer_mutex);
         }
@@ -166,8 +167,7 @@ void *client_handler(void *sock_fd) {
             break;
         }
         // 如果是单挑语句，需要按照一个完整的事务来执行，所以执行完当前语句后，自动提交事务
-        if(!context->txn_->get_txn_mode())
-        {
+        if (!context->txn_->get_txn_mode()) {
             txn_manager->commit(context->txn_, context->log_mgr_);
         }
     }
@@ -180,14 +180,14 @@ void *client_handler(void *sock_fd) {
 
 void start_server() {
     // init mutex
-    buffer_mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
-    sockfd_mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+    buffer_mutex = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    sockfd_mutex = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(buffer_mutex, nullptr);
     pthread_mutex_init(sockfd_mutex, nullptr);
 
     int sockfd_server;
     int fd_temp;
-    struct sockaddr_in s_addr_in {};
+    struct sockaddr_in s_addr_in{};
 
     // 初始化连接
     sockfd_server = socket(AF_INET, SOCK_STREAM, 0);  // ipv4,TCP
@@ -200,7 +200,7 @@ void start_server() {
     s_addr_in.sin_family = AF_INET;
     s_addr_in.sin_addr.s_addr = htonl(INADDR_ANY);
     s_addr_in.sin_port = htons(SOCK_PORT);
-    fd_temp = bind(sockfd_server, (struct sockaddr *)(&s_addr_in), sizeof(s_addr_in));
+    fd_temp = bind(sockfd_server, (struct sockaddr *) (&s_addr_in), sizeof(s_addr_in));
     if (fd_temp == -1) {
         std::cout << "Bind error!" << std::endl;
         exit(1);
@@ -215,7 +215,7 @@ void start_server() {
     while (!should_exit) {
         std::cout << "Waiting for new connection..." << std::endl;
         pthread_t thread_id;
-        struct sockaddr_in s_addr_client {};
+        struct sockaddr_in s_addr_client{};
         int client_length = sizeof(s_addr_client);
 
         if (setjmp(jmpbuf)) {
@@ -225,14 +225,14 @@ void start_server() {
 
         // Block here. Until server accepts a new connection.
         pthread_mutex_lock(sockfd_mutex);
-        int sockfd = accept(sockfd_server, (struct sockaddr *)(&s_addr_client), (socklen_t *)(&client_length));
+        int sockfd = accept(sockfd_server, (struct sockaddr *) (&s_addr_client), (socklen_t *) (&client_length));
         if (sockfd == -1) {
             std::cout << "Accept error!" << std::endl;
             continue;  // ignore current socket ,continue while loop.
         }
 
         // 和客户端建立连接，并开启一个线程负责处理客户端请求
-        if (pthread_create(&thread_id, nullptr, &client_handler, (void *)(&sockfd)) != 0) {
+        if (pthread_create(&thread_id, nullptr, &client_handler, (void *) (&sockfd)) != 0) {
             std::cout << "Create thread fail!" << std::endl;
             break;  // break while loop
         }
@@ -242,7 +242,7 @@ void start_server() {
     // Clear
     std::cout << " Try to close all client-connection.\n";
     int ret = shutdown(sockfd_server, SHUT_WR);  // shut down the all or part of a full-duplex connection.
-    if(ret == -1) { printf("%s\n", strerror(errno)); }
+    if (ret == -1) { printf("%s\n", strerror(errno)); }
 //    assert(ret != -1);
     sm_manager->close_db();
     std::cout << " DB has been closed.\n";

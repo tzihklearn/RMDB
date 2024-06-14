@@ -140,6 +140,27 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
     }
     index_write_set->clear();
 
+    auto index_create_set = txn->get_index_create_page_set();
+    while (!index_create_set->empty()) {
+        auto index_create_rcd = index_create_set->back();
+        std::string index_name = index_create_rcd->GetIndexName();
+
+        auto tab_name = index_create_rcd->GetTabName();
+        auto col_names = index_create_rcd->GetCalNames();
+
+        switch (index_create_rcd->GetCreateType()) {
+            case IType::INSERT_INDEX: {
+                sm_manager_->drop_index(tab_name, col_names, nullptr);
+                break;
+            }
+            case IType::DROP_INDEX : {
+                sm_manager_->create_index(tab_name, col_names, nullptr);
+                break;
+            }
+        }
+        index_create_set->pop_back();
+    }
+
     // 3. 事务abort之后释放所有锁
     std::shared_ptr<std::unordered_set<LockDataId>> lock_set_ = txn->get_lock_set();
     for (auto iter: *lock_set_) {

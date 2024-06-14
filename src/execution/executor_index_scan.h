@@ -73,14 +73,15 @@ public:
 
         is_end_ = false;
 
-        // IS
-        context_->lock_mgr_->lock_IS_on_table(context_->txn_, fh_->GetFd());
+        // 申请表级共享锁（S）
+        context_->lock_mgr_->lock_shared_on_table(context_->txn_, fh_->GetFd());
     }
 
     void beginTuple() override {
-        // S
+        // 申请行级共享锁（S）
         context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
 
+        // 计算扫描范围
         RmRecord lower_key(index_meta_.col_tot_len), upper_key(index_meta_.col_tot_len);
 
         size_t offset = 0;
@@ -105,7 +106,7 @@ public:
                 }
 
                 case TYPE_STRING : {
-                    tmp_max.set_str(std::string(col.len, 255));
+                    tmp_max.set_str(std::string(col.len, (char) 255));
                     tmp_max.init_raw(col.len);
                     tmp_min.set_str(std::string(col.len, 0));
                     tmp_min.init_raw(col.len);

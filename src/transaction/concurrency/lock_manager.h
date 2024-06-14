@@ -49,9 +49,9 @@ class LockManager {
     };
 
 public:
-    LockManager() {}
+    LockManager() = default;
 
-    ~LockManager() {}
+    ~LockManager() = default;
 
     bool lock_shared_on_record(Transaction *txn, const Rid &rid, int tab_fd);
 
@@ -72,14 +72,14 @@ private:
     std::unordered_map<LockDataId, LockRequestQueue> lock_table_;  // 全局锁表
 
     // 加锁检查
-    bool lock_check(Transaction *txn);
+    static bool lock_check(Transaction *txn);
 
     // 释放锁检查
-    bool unlock_check(Transaction *txn);
+    static bool unlock_check(Transaction *txn);
 
     // wait-die策略
-    void wait_die(Transaction *txn, LockRequestQueue &request_queue, std::unique_lock<std::mutex> &ul);
+    static void wait_die(Transaction *txn, LockRequestQueue &request_queue, std::unique_lock<std::mutex> &ul);
 
     // 检查虚假唤醒
-    bool is_waiting_required(Transaction *txn, const LockRequestQueue &request_queue);
+    static bool is_waiting_required(Transaction *txn, const LockRequestQueue &request_queue);
 };
