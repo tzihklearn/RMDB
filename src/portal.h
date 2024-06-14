@@ -152,7 +152,7 @@ public:
                 break;
             }
             case PORTAL_MULTI_QUERY: {
-                ql->run_mutli_query(portal->plan, context);
+                ql->run_multi_query(portal->plan, context);
                 break;
             }
             case PORTAL_CMD_UTILITY: {

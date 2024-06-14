@@ -31,6 +31,11 @@ enum class WType {
     INSERT_TUPLE = 0, DELETE_TUPLE, UPDATE_TUPLE
 };
 
+/* 索引回滚类型 */
+enum class IType {
+    INSERT_INDEX = 0, DROP_INDEX
+};
+
 /**
  * @brief 事务的写操作记录，用于事务的回滚
  * INSERT
@@ -124,6 +129,30 @@ private:
     char *key_ = nullptr;
     char *old_key_ = nullptr;
     char *new_key_ = nullptr;
+};
+
+class IndexCreateRecord {
+public:
+    IndexCreateRecord() = default;
+
+    IndexCreateRecord(IType iType, const std::string &index_name, std::string tab_name,
+                      std::vector<std::string> col_names)
+            : iType(iType), index_name_(index_name), tab_name_(tab_name), col_names_(col_names) {
+    }
+
+    inline IType &GetCreateType() { return iType; }
+
+    inline std::string &GetIndexName() { return index_name_; }
+
+    inline std::string &GetTabName() { return tab_name_; }
+
+    inline std::vector<std::string> &GetCalNames() { return col_names_; }
+
+private:
+    IType iType;
+    std::string index_name_;
+    std::string tab_name_;
+    std::vector<std::string> col_names_;
 };
 
 /* 多粒度锁，加锁对象的类型，包括记录和表 */

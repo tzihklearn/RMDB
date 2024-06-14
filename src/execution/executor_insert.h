@@ -25,7 +25,6 @@ private:
     std::string tab_name_;          // 表名称
     Rid rid_;                       // 插入的位置，由于系统默认插入时不指定位置，因此当前rid_在插入后才赋值
     SmManager *sm_manager_;
-    Context *context_;
 
 public:
     InsertExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<Value> values, Context *context) {
@@ -39,17 +38,13 @@ public:
         fh_ = sm_manager_->fhs_.at(tab_name).get();
         context_ = context;
 
-        // IX
+        // 申请表级意向写锁（IX）
         context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        // X
-        context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid_, fh_->GetFd());
-
-        RmRecord rec(fh_->get_file_hdr().record_size);
-
         // 构建记录
+        RmRecord rec(fh_->get_file_hdr().record_size);
         for (size_t i = 0; i < values_.size(); i++) {
             auto &col = tab_.cols[i];
             auto &val = values_[i];
@@ -60,8 +55,11 @@ public:
             memcpy(rec.data + col.offset, val.raw->data, col.len);
         }
 
-        // 插入记录到文件
+        // 插入记录到文件并获取新的rid
         rid_ = fh_->insert_record(rec.data, context_);
+
+        // 申请行级排他锁（X）
+//        context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid_, fh_->GetFd());
 
         // 记录事务日志
         Transaction *txn = context_->txn_;

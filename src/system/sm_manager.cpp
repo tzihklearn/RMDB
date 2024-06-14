@@ -293,6 +293,11 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
         }
         ix_hdl->insert_entry(key, rm_scan.rid(), context->txn_);
     }
+
+    if (nullptr != context) {
+        auto index_record = new IndexCreateRecord(IType::INSERT_INDEX, index_name, tab_name, col_names);
+        context->txn_->append_index_create_record(index_record);
+    }
 }
 
 /**
@@ -326,6 +331,11 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<std::s
     auto ix_meta = db_.get_table(tab_name).get_index_meta(col_names);
     db_.get_table(tab_name).indexes.erase(ix_meta);
     ihs_.erase(index_name);
+
+    if (nullptr != context) {
+        auto index_record = new IndexCreateRecord(IType::DROP_INDEX, index_name, tab_name, col_names);
+        context->txn_->append_index_create_record(index_record);
+    }
 }
 
 /**

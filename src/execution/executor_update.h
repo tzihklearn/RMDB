@@ -25,7 +25,6 @@ private:
     std::string tab_name_;                  // 表名
     std::vector<SetClause> set_clauses_;    // 需要更新的字段和值
     SmManager *sm_manager_;
-    Context *context_;                      // 上下文
 
 public:
     UpdateExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<SetClause> set_clauses,
@@ -39,15 +38,15 @@ public:
         rids_ = rids;
         context_ = context;
 
-        // IX
+        // 申请表级意向写锁（IX）
         context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        // X
-        context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid(), fh_->GetFd());
-
         for (auto &rid: rids_) {
+            // 申请行级排他锁（X）
+//            context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd());
+
             auto rec = fh_->get_record(rid, context_);
 
             // 删除旧索引

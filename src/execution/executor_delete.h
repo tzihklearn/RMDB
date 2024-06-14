@@ -24,7 +24,6 @@ private:
     std::vector<Rid> rids_;         // 需要删除的记录的位置
     std::string tab_name_;          // 表名称
     SmManager *sm_manager_;
-    Context *context_;
 
 public:
     DeleteExecutor(SmManager *sm_manager, const std::string &tab_name, std::vector<Condition> conds,
@@ -37,15 +36,15 @@ public:
         rids_ = rids;
         context_ = context;
 
-        // IX
+        // 申请表级意向写锁（IX）
         context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        // X
-        context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid(), fh_->GetFd());
-
         for (auto &rid: rids_) {
+            // 申请行级排他锁（X）
+//            context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd());
+
             // 获取原记录
             auto record = fh_->get_record(rid, context_);
 
