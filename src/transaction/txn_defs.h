@@ -28,12 +28,12 @@ enum class IsolationLevel {
 
 /* 事务写操作类型，包括插入、删除、更新三种操作 */
 enum class WType {
-    INSERT_TUPLE = 0, DELETE_TUPLE, UPDATE_TUPLE
+    INSERT_TUPLE = 0, DELETE_TUPLE = 1, UPDATE_TUPLE = 2
 };
 
 /* 索引回滚类型 */
 enum class IType {
-    INSERT_INDEX = 0, DROP_INDEX
+    INSERT_INDEX = 0, DROP_INDEX = 1
 };
 
 /**
@@ -225,31 +225,25 @@ public:
 
     txn_id_t get_transaction_id() { return txn_id_; }
 
-    AbortReason GetAbortReason() { return abort_reason_; }
-
     std::string GetInfo() {
         switch (abort_reason_) {
             case AbortReason::LOCK_ON_SHRINKING: {
                 return "Transaction " + std::to_string(txn_id_) +
                        " aborted because it cannot request locks on SHRINKING phase\n";
             }
-                break;
 
             case AbortReason::UPGRADE_CONFLICT: {
                 return "Transaction " + std::to_string(txn_id_) +
                        " aborted because another transaction is waiting for upgrading\n";
             }
-                break;
 
             case AbortReason::DEADLOCK_PREVENTION: {
                 return "Transaction " + std::to_string(txn_id_) + " aborted for deadlock prevention\n";
             }
-                break;
 
             default: {
                 return "Transaction aborted\n";
             }
-                break;
         }
     }
 };

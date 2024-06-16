@@ -12,27 +12,50 @@ See the Mulan PSL v2 for more details. */
 
 #include "ix_defs.h"
 #include "ix_index_handle.h"
-
-// class IxIndexHandle;
+#include "common/context.h" // 假设Context定义在context.h中
 
 // 用于遍历叶子结点
 // 用于直接遍历叶子结点，而不用findleafpage来得到叶子结点
 // TODO：对page遍历时，要加上读锁
 class IxScan : public RecScan {
-    const IxIndexHandle *ih_;
+    IxIndexHandle *ih_;
     Iid iid_;  // 初始为lower（用于遍历的指针）
     Iid end_;  // 初始为upper
-    BufferPoolManager *bpm_;
+    Context *context_;
+    IxNodeHandle *node_buffer;
 
-   public:
-    IxScan(const IxIndexHandle *ih, const Iid &lower, const Iid &upper, BufferPoolManager *bpm)
-        : ih_(ih), iid_(lower), end_(upper), bpm_(bpm) {}
+public:
+    txn_id_t txn_id;
+
+    IxScan(IxIndexHandle *ih, const Iid &lower, const Iid &upper, Context *context)
+            : ih_(ih), iid_(lower), end_(upper), context_(context) {
+        if (iid_.page_no != -1) {
+            node_buffer = ih_->fetch_node(iid_.page_no);
+        } else {
+            node_buffer = nullptr;
+        }
+    }
 
     void next() override;
 
-    bool is_end() const override { return iid_ == end_; }
+    bool is_end() const override {
+        return iid_ == end_;
+    }
 
     Rid rid() const override;
 
     const Iid &iid() const { return iid_; }
+
+    void update_node_buffer(page_id_t page_no);
+
+    ~IxScan() {
+        update_node_buffer(INVALID_PAGE_ID);
+    }
+
+    void reload(const Iid &lower, const Iid &upper) {
+        update_node_buffer(INVALID_PAGE_ID);
+        iid_ = lower;
+        end_ = upper;
+        node_buffer = ih_->fetch_node(iid_.page_no);
+    }
 };

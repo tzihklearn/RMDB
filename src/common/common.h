@@ -19,12 +19,6 @@ See the Mulan PSL v2 for more details. */
 #include "defs.h"
 #include "record/rm_defs.h"
 
-struct ColDef {
-    std::string name;       // 字段名称
-    ColType type;           // 字段类型
-    int len;                // 字段长度
-};
-
 struct TabCol {
     std::string tab_name;
     std::string col_name;

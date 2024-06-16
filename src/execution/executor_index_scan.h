@@ -158,7 +158,7 @@ public:
 
         auto lowerId = ih_->lower_bound(lower_key.data);
         auto upperId = ih_->upper_bound(upper_key.data);
-        scan_ = std::make_unique<IxScan>(ih_, lowerId, upperId, sm_manager_->get_bpm());
+        scan_ = std::make_unique<IxScan>(ih_, lowerId, upperId, context_);
 
         while (!scan_->is_end()) {
             rid_ = scan_->rid();

@@ -76,6 +76,16 @@ public:
         rids = reinterpret_cast<Rid *>(keys + file_hdr->keys_size_);
     }
 
+    bool is_safe(Operation op) {
+        if (op == Operation::FIND) {
+            return true;
+        } else if (op == Operation::INSERT) {
+            return this->get_num_vals() + 1 < this->get_max_size();
+        } else {
+            return this->get_num_vals() - 1 >= this->get_min_size();
+        }
+    }
+
     int get_size() { return page_hdr->num_key; }
 
     void set_size(int size) { page_hdr->num_key = size; }
@@ -92,6 +102,8 @@ public:
     page_id_t get_page_no() { return page->get_page_id().page_no; }
 
     PageId get_page_id() { return page->get_page_id(); }
+
+    int get_num_vals() { return (this->is_leaf_page()) ? this->page_hdr->num_key : this->page_hdr->num_key + 1; }
 
     page_id_t get_next_leaf() { return page_hdr->next_leaf; }
 
@@ -185,6 +197,59 @@ private:
 
 public:
     IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd);
+
+    void unlock_all_latch(Transaction *txn) {
+        if (txn == nullptr) {
+            //啥也不做.
+            return;
+        }
+        auto index_latch_pages = txn->get_index_latch_page_set();
+        //先unlock
+        for (auto iter = index_latch_pages->begin(); iter != index_latch_pages->end(); iter++) {
+            unlock(static_cast<Operation>(iter->second), iter->first);
+        }
+        //再删除
+        index_latch_pages->clear();
+    }
+
+    void lock(Operation op, Page *page) {
+        if (op == Operation::FIND) {
+            lock_read(page);
+        } else {
+            lock_write(page);
+        }
+    }
+
+    void unlock(Operation op, Page *page) {
+        if (op == Operation::FIND) {
+            unlock_read(page);
+        } else {
+            unlock_write(page);
+        }
+    }
+
+    void lock_write(Page *page) {
+        page->add_pin_count();
+        page->rw_latch_.lock_write();
+    }
+
+
+    void unlock_write(Page *page) {
+        page->rw_latch_.unlock_write();
+        this->buffer_pool_manager_->unpin_page(page->get_page_id(), false);
+    }
+
+
+    void lock_read(Page *page) {
+        page->add_pin_count();
+        page->rw_latch_.lock_read();
+    }
+
+
+    void unlock_read(Page *page) {
+        page->rw_latch_.unlock_read();
+        this->buffer_pool_manager_->unpin_page(page->get_page_id(), false);
+    }
 
     // for search
     bool get_value(const char *key, std::vector<Rid> *result, Transaction *transaction);

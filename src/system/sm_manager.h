@@ -19,6 +19,12 @@ See the Mulan PSL v2 for more details. */
 
 class Context;
 
+struct ColDef {
+    std::string name;       // 字段名称
+    ColType type;           // 字段类型
+    int len;                // 字段长度
+};
+
 /* 系统管理器，负责元数据管理和DDL语句的执行 */
 class SmManager {
 public:
