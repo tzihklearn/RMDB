@@ -124,7 +124,7 @@ public:
                                                                                                    x->tab_name_,
                                                                                                    x->conds_,
                                                                                                    x->aggregationMetas_,
-                                                                                                   x->group_by_col_,
+                                                                                                   x->group_by_cols_,
                                                                                                    rids, context);
                     // 返回一个select的算子
                     return std::make_shared<PortalStmt>(PORTAL_ONE_SELECT, std::move(x->output_col_), std::move(root),

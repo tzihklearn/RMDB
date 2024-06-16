@@ -167,7 +167,7 @@ public:
     // 聚合函数Mete
     std::vector<AggregateMeta> aggregationMetas_;
     // group by
-    std::shared_ptr<GroupByMete> group_by_col_;
+    std::vector<std::shared_ptr<GroupByMete>> group_by_cols_;
 
     // 聚合函数输出列
     // 聚合函数支持as语法

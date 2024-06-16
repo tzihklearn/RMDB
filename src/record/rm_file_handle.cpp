@@ -31,6 +31,9 @@ std::unique_ptr<RmRecord> RmFileHandle::get_record(const Rid &rid, Context *cont
 
     // 赋值其内部的data和size
     char *data_ptr = page_hdl.get_slot(rid.slot_no);
+    if (!Bitmap::is_set(page_hdl.bitmap, rid.slot_no)) {
+        throw RecordNotFoundError(rid.page_no, rid.slot_no);
+    }
     std::memcpy(rm_rcd->data, data_ptr, record_size);
     rm_rcd->size = record_size;
 
@@ -166,7 +169,7 @@ void RmFileHandle::update_record(const Rid &rid, char *buf, Context *context) {
  */
 RmPageHandle RmFileHandle::fetch_page_handle(int page_no) const {
     // 1.如果page_no invalid，抛出PageNotExistError异常
-    if (page_no >= RmFileHandle::file_hdr_.num_pages) {
+    if (page_no >= RmFileHandle::file_hdr_.num_pages || page_no < 0) {
         throw PageNotExistError("", page_no);
     }
     // 2.通过buffer pool manager获取指定pageId的page
@@ -179,8 +182,8 @@ RmPageHandle RmFileHandle::fetch_page_handle(int page_no) const {
         throw PageNotExistError("", page_no);
     }
     // 3.将获取到的page对象封装为RmPageHandle返回
-    RmPageHandle page_hdr(&file_hdr_, page);
-    return page_hdr;
+    RmPageHandle page_hdl(&file_hdr_, page);
+    return page_hdl;
 }
 
 /**
@@ -192,14 +195,17 @@ RmPageHandle RmFileHandle::create_new_page_handle() {
     PageId page_id;
     page_id.fd = fd_;
     Page *page = buffer_pool_manager_->new_page(&page_id);
+    if (page == nullptr) {
+        throw std::runtime_error("Failed to create new page");
+    }
 
     // 2. 更新page handle的相关信息
-    RmPageHandle page_hdl = RmPageHandle(&file_hdr_, page);
+    RmPageHandle page_hdl(&file_hdr_, page);
     Bitmap::init(page_hdl.bitmap, file_hdr_.bitmap_size);
     page_hdl.page_hdr->num_records = 0;
     page_hdl.page_hdr->next_free_page_no = RM_NO_PAGE;
 
-    //3. 更新file_hdr_
+    // 3. 更新file_hdr_
     file_hdr_.num_pages++;
     file_hdr_.first_free_page_no = page_hdl.page->get_page_id().page_no;
     return page_hdl;
@@ -214,18 +220,20 @@ RmPageHandle RmFileHandle::create_new_page_handle() {
 RmPageHandle RmFileHandle::create_page_handle() {
     // 1. 判断file_hdr_中是否还有空闲页
     int page_no = file_hdr_.first_free_page_no;
+
     // 1.1 没有空闲页：使用缓冲池来创建一个新page；可直接调用create_new_page_handle()
-    if (page_no != RM_NO_PAGE) {
-        return fetch_page_handle(page_no);
+    if (page_no == RM_NO_PAGE) {
+        return create_new_page_handle();
     }
     // 2. 生成page handle并返回给上层
-    return create_new_page_handle();
+    return fetch_page_handle(page_no);
 }
 
 /**
  * @description: 当一个页面从没有空闲空间的状态变为有空闲空间状态时，更新文件头和页头中空闲页面相关的元数据
  */
 void RmFileHandle::release_page_handle(RmPageHandle &page_handle) {
+    // 1. 更新文件头和页头中空闲页面相关的元数据
     page_handle.page_hdr->next_free_page_no = file_hdr_.first_free_page_no;
     file_hdr_.first_free_page_no = page_handle.page->get_page_id().page_no;
 }

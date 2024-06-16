@@ -136,12 +136,16 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     rec_printer.print_separator(context);
     // print header into file
     std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
-    outfile << "|";
-    for (const auto &caption: captions) {
-        outfile << " " << caption << " |";
+    try {
+        outfile.open("output.txt", std::ios::out | std::ios::app);
+        outfile << "|";
+        for (const auto &caption: captions) {
+            outfile << " " << caption << " |";
+        }
+        outfile << "\n";
+    } catch (std::exception &e) {
+        std::cerr << "execution_manager select_from show_index() only pingcas can do" << e.what() << std::endl;
     }
-    outfile << "\n";
 
     // Print records
     size_t num_rec = 0;
