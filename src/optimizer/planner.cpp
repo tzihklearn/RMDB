@@ -415,7 +415,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
             // 设置聚合函数的执行计划，将表扫描的执行计划作为子计划
             auto aggregatePlan = std::make_shared<DMLPlan>(T_SvAggregate, table_scan_plan,  query->tables[0], std::vector<Value>() , query->conds, std::vector<SetClause>());
             aggregatePlan->aggregationMetas_ = query->aggregate_metas;
-            aggregatePlan->group_by_col_ = query->group_by_col;
+            aggregatePlan->group_by_cols_ = query->group_by_cols;
 
             aggregatePlan->output_col_ = query->cols;
             return aggregatePlan;

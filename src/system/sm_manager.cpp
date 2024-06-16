@@ -130,20 +130,24 @@ void SmManager::close_db() {
  * @param {Context*} context
  */
 void SmManager::show_tables(Context *context) {
-    std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
-    outfile << "| Tables |\n";
-    RecordPrinter printer(1);
-    printer.print_separator(context);
-    printer.print_record({"Tables"}, context);
-    printer.print_separator(context);
-    for (auto &entry: db_.tabs_) {
-        auto &tab = entry.second;
-        printer.print_record({tab.name}, context);
-        outfile << "| " << tab.name << " |\n";
+    try {
+        std::fstream outfile;
+        outfile.open("output.txt", std::ios::out | std::ios::app);
+        outfile << "| Tables |\n";
+        RecordPrinter printer(1);
+        printer.print_separator(context);
+        printer.print_record({"Tables"}, context);
+        printer.print_separator(context);
+        for (auto &entry: db_.tabs_) {
+            auto &tab = entry.second;
+            printer.print_record({tab.name}, context);
+            outfile << "| " << tab.name << " |\n";
+        }
+        printer.print_separator(context);
+        outfile.close();
+    } catch (std::exception &e) {
+        std::cerr << "sm_manager show_tables() only pingcas can do" << e.what() << std::endl;
     }
-    printer.print_separator(context);
-    outfile.close();
 }
 
 /**
@@ -362,24 +366,29 @@ void SmManager::show_index(std::string tab_name, Context *context) {
         context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
     }
     auto index_metas = db_.get_table(tab_name).indexes;
-    std::fstream outfile;
-    outfile.open("output.txt", std::ios::out | std::ios::app);
-    RecordPrinter printer(3);
-    for (auto &index: index_metas) {
-        outfile << "| " << tab_name << " | unique | " << "(";
-        std::stringstream ss;
-        ss << "(";
-        auto it = index.cols.begin();
-        outfile << (*it).name;
-        ss << (*it).name;
-        it++;
-        for (; it != index.cols.end(); ++it) {
-            outfile << "," << (*it).name;
-            ss << "," << (*it).name;
-        }
+    try {
+        std::fstream outfile;
+        outfile.open("output.txt", std::ios::out | std::ios::app);
+        RecordPrinter printer(3);
+        for (auto &index: index_metas) {
+            outfile << "| " << tab_name << " | unique | " << "(";
+            std::stringstream ss;
+            ss << "(";
+            auto it = index.cols.begin();
+            outfile << (*it).name;
+            ss << (*it).name;
+            it++;
+            for (; it != index.cols.end(); ++it) {
+                outfile << "," << (*it).name;
+                ss << "," << (*it).name;
+            }
 
-        outfile << ") |\n";
-        ss << ")";
-        printer.print_record({tab_name, "unique", ss.str()}, context);
+            outfile << ") |\n";
+            ss << ")";
+            printer.print_record({tab_name, "unique", ss.str()}, context);
+        }
+        outfile.close();
+    } catch (std::exception &e) {
+        std::cerr << "sm_manager show_index() only pingcas can do" << e.what() << std::endl;
     }
 }

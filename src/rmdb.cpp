@@ -111,6 +111,7 @@ void *client_handler(void *sock_fd) {
         bool finish_analyze = false;
         pthread_mutex_lock(buffer_mutex);
         YY_BUFFER_STATE buf = yy_scan_string(data_recv);
+        // yyparse()返回0表示语法解析成功
         if (yyparse() == 0) {
             if (ast::parse_tree != nullptr) {
                 try {
@@ -136,10 +137,14 @@ void *client_handler(void *sock_fd) {
                     txn_manager->abort(context->txn_, log_manager.get());
                     std::cout << e.GetInfo() << std::endl;
 
-                    std::fstream outfile;
-                    outfile.open("output.txt", std::ios::out | std::ios::app);
-                    outfile << str;
-                    outfile.close();
+                    try {
+                        std::fstream outfile;
+                        outfile.open("output.txt", std::ios::out | std::ios::app);
+                        outfile << str;
+                        outfile.close();
+                    } catch (std::exception &e) {
+                        std::cerr << "rmdb throw TransactionAbortException only pingcas can do" << e.what() << std::endl;
+                    }
                 } catch (RMDBError &e) {
                     // 遇到异常，需要打印failure到output.txt文件中，并发异常信息返回给客户端
                     std::cerr << e.what() << std::endl;
@@ -150,11 +155,25 @@ void *client_handler(void *sock_fd) {
                     offset = e.get_msg_len() + 1;
 
                     // 将报错信息写入output.txt
-                    std::fstream outfile;
-                    outfile.open("output.txt", std::ios::out | std::ios::app);
-                    outfile << "failure\n";
-                    outfile.close();
+                    try {
+                        std::fstream outfile;
+                        outfile.open("output.txt",std::ios::out | std::ios::app);
+                        outfile << "failure\n";
+                        outfile.close();
+                    } catch (std::exception &e) {
+                        std::cerr << "rmdb throw RMDBERROR only pingcas can do" << e.what() << std::endl;
+                    }
                 }
+            }
+        } else {
+            // 将报错信息写入output.txt
+            try {
+                std::fstream outfile;
+                outfile.open("output.txt",std::ios::out | std::ios::app);
+                outfile << "failure\n";
+                outfile.close();
+            } catch (std::exception &e) {
+                std::cerr << "rmdb throw RMDBERROR only pingcas can do" << e.what() << std::endl;
             }
         }
         if (!finish_analyze) {

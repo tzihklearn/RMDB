@@ -34,7 +34,6 @@ void DiskManager::write_page(int fd, page_id_t page_no, const char *offset, int 
     // 2.调用write()函数
     ssize_t write_bytes = write(fd, offset, num_bytes);
     if (write_bytes != num_bytes) {
-        // 注意write返回值与num_bytes不等时 throw InternalError("DiskManager::write_page Error");
         throw InternalError("DiskManager::write_page Error");
     }
 }
@@ -54,7 +53,6 @@ void DiskManager::read_page(int fd, page_id_t page_no, char *offset, int num_byt
     // 2.调用read()函数
     ssize_t read_bytes = read(fd, offset, num_bytes);
     if (read_bytes != num_bytes) {
-        // 注意read返回值与num_bytes不等时，throw InternalError("DiskManager::read_page Error");
         throw InternalError("DiskManager::read_page Error");
     }
 }
@@ -115,7 +113,7 @@ void DiskManager::create_file(const std::string &path) {
     }
     // 2.调用open()函数，使用O_CREAT模式
     int fd = open(path.c_str(), O_CREAT, 0666);
-    if (open(path.c_str(), O_CREAT, 0666) == -1) {
+    if (fd == -1) {
         throw UnixError();
     }
     // 3.关闭文件
@@ -142,7 +140,6 @@ void DiskManager::destroy_file(const std::string &path) {
         throw FileNotDeleteError(path);
     }
 }
-
 
 /**
  * @description: 打开指定路径文件
@@ -186,7 +183,6 @@ void DiskManager::close_file(int fd) {
     path2fd_.erase(fd2path_[fd]);
     fd2path_.erase(fd);
 }
-
 
 /**
  * @description: 获得文件的大小
@@ -248,7 +244,6 @@ int DiskManager::read_log(char *log_data, int size, int offset) {
     assert(bytes_read == size);
     return bytes_read;
 }
-
 
 /**
  * @description: 写日志内容

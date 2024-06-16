@@ -58,8 +58,8 @@ GROUP_BY HAVING IN
 %type <sv_setKnobType> set_knob_type
 
 %type <sv_aggregate_type> AGGREGATE_SUM AGGREGATE_COUNT AGGREGATE_MAX AGGREGATE_MIN
-%type <sv_group_by> group_by
-%type <sv_group_by_col> group_by_col
+%type <sv_group_by_col> sv_group_by_col
+%type <sv_group_by_cols> group_by_cols sv_group_by
 
 %type <sub_select_stmt> sub_select_stmt
 %type <in_op_value> in_op_vlaue
@@ -171,7 +171,7 @@ dml:
     {
         $$ = std::make_shared<UpdateStmt>($2, $4, $5);
     }
-    |   SELECT selector FROM tableList optWhereClause opt_order_clause group_by_col
+    |   SELECT selector FROM tableList optWhereClause opt_order_clause sv_group_by
     {
         $$ = std::make_shared<SelectStmt>($2, $4, $5, $6, $7);
     }
@@ -286,7 +286,11 @@ whereClause:
     ;
 
 col:
-        tbName '.' colName
+	'*'
+    {
+        $$ = std::make_shared<Col>("", "", SV_AGGREGATE_NULL, "");
+    }
+    |    tbName '.' colName
     {
         $$ = std::make_shared<Col>($1, $3, SV_AGGREGATE_NULL, "");
     }
@@ -390,7 +394,7 @@ expr:
     ;
 
 sub_select_stmt:
-	SELECT colList FROM tableList optWhereClause opt_order_clause group_by_col
+	SELECT colList FROM tableList optWhereClause opt_order_clause sv_group_by
     {
         $$ = std::make_shared<SubSelectStmt>($2, $4, $5, $6, $7);
     }
@@ -433,11 +437,7 @@ setClause:
     ;
 
 selector:
-        '*'
-    {
-        $$ = {};
-    }
-    |   colList
+	colList
     ;
 
 AGGREGATE_SUM:
@@ -468,29 +468,34 @@ AGGREGATE_MIN:
     }
     ;
 
-group_by:
-	/* epsilon */ { /* ignore*/ }
-    |	GROUP BY col
+sv_group_by_col:
+	col
     {
-	$$ = std::make_shared<GroupBy>($3, std::vector<std::shared_ptr<BinaryExpr>>{});
+	$$ = std::make_shared<GroupBy>($1, std::vector<std::shared_ptr<BinaryExpr>>{});
     }
-    |   GROUP BY col HAVING whereClause
+    |   col HAVING whereClause
     {
-	$$ = std::make_shared<GroupBy>($3, $5);
+	$$ = std::make_shared<GroupBy>($1, $3);
     }
     ;
 
-group_by_col:
-	/* epsilon */ { /* ignore*/ }
-    |	GROUP BY col
+group_by_cols:
+	sv_group_by_col
     {
-	$$ = std::make_shared<GroupBy>($3, std::vector<std::shared_ptr<BinaryExpr>>{});
+    	$$ = std::vector<std::shared_ptr<GroupBy>>{$1};
     }
-    |   GROUP BY col HAVING whereClause
+    |   group_by_cols ',' sv_group_by_col
     {
-	$$ = std::make_shared<GroupBy>($3, $5);
+    	$$.push_back($3);
     }
     ;
+
+sv_group_by:
+	/* epsilon */ { /* ignore*/ }
+    |   GROUP BY group_by_cols
+    {
+    	$$ = $3;
+    }
 
 tableList:
         tbName

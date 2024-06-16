@@ -17,7 +17,7 @@ See the Mulan PSL v2 for more details. */
  * @return {lsn_t} 返回该日志的日志记录号
  */
 lsn_t LogManager::add_log_to_buffer(LogRecord *log_record) {
-    std::scoped_lock lock(latch_);
+//    std::scoped_lock lock(latch_);
     int log_size = log_record->log_tot_len_;
 
     assert(log_size < LOG_BUFFER_SIZE);

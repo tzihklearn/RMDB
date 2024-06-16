@@ -201,6 +201,7 @@ struct GroupBy : public TreeNode
        col(std::move(col_)), having(having_) {}
 };
 
+
 struct InsertStmt : public TreeNode {
     std::string tab_name;
     std::vector<std::shared_ptr<Value>> vals;
@@ -246,20 +247,22 @@ struct SelectStmt : public TreeNode {
     std::vector<std::shared_ptr<JoinExpr>> jointree;
 
 
-    bool has_sort;
+    bool has_sort = false;
     std::shared_ptr<OrderBy> order;
-    bool  has_ag;
-    std::shared_ptr<GroupBy> group_by_col;
+    bool  has_ag = false;
+    std::vector<std::shared_ptr<GroupBy>> group_by_cols;
 
     SelectStmt(std::vector<std::shared_ptr<Col>> cols_,
                std::vector<std::string> tabs_,
                std::vector<std::shared_ptr<BinaryExpr>> conds_,
                std::shared_ptr<OrderBy> order_,
-               std::shared_ptr<GroupBy> group_by_col_):
+               std::vector<std::shared_ptr<GroupBy>> group_by_cols_):
             cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)),
-            order(std::move(order_)), group_by_col(std::move(group_by_col_)) {
+            order(std::move(order_)), group_by_cols(std::move(group_by_cols_)) {
                 has_sort = (bool)order;
-                has_ag = (bool)group_by_col;
+                if (!group_by_cols_.empty()) {
+                    has_ag = true;
+                }
             }
 };
 struct SubSelectStmt : public Expr {
@@ -271,20 +274,22 @@ struct SubSelectStmt : public Expr {
     bool has_sort;
     std::shared_ptr<OrderBy> order;
     bool  has_ag;
-    std::shared_ptr<GroupBy> group_by_col;
+    std::vector<std::shared_ptr<GroupBy>> group_by_cols;
 
     SubSelectStmt(std::vector<std::shared_ptr<Col>> cols_,
                   std::vector<std::string> tabs_,
                   std::vector<std::shared_ptr<BinaryExpr>> conds_,
                   std::shared_ptr<OrderBy> order_,
-                  std::shared_ptr<GroupBy> group_by_col_):
+                  std::vector<std::shared_ptr<GroupBy>> group_by_cols_):
                 cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)),
-                order(std::move(order_)), group_by_col(std::move(group_by_col_)) {
+                order(std::move(order_)), group_by_cols(std::move(group_by_cols_)) {
                     has_sort = (bool)order;
-                    has_ag = (bool)group_by_col;
+                    if (!group_by_cols.empty()) {
+                        has_ag = true;
+                    }
                 }
     SelectStmt convert_to_select() {
-        SelectStmt s = SelectStmt(cols, tabs, conds, order, group_by_col);
+        SelectStmt s = SelectStmt(cols, tabs, conds, order, group_by_cols);
         s.has_sort = has_sort;
         s.has_ag = has_ag;
         s.jointree = std::move(jointree);
@@ -340,8 +345,8 @@ struct SemValue {
 
     // 存储聚合函数类型临时数据
     SvAggregateType sv_aggregate_type;
-    std::shared_ptr<GroupBy> sv_group_by;
     std::shared_ptr<GroupBy> sv_group_by_col;
+    std::vector<std::shared_ptr<GroupBy>> sv_group_by_cols;
 
 
     std::shared_ptr<OrderBy> sv_orderby;
