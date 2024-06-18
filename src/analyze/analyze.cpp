@@ -112,7 +112,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
                     }
 
                     auto clo = tabMeta.get_col(selColumn->col_name);
-                    if (selColumn->ag_type != ast::SV_AGGREGATE_COUNT && clo->type == TYPE_STRING) {
+                    if (selColumn->ag_type == ast::SV_AGGREGATE_SUM && clo->type == TYPE_STRING) {
                         throw IncompatibleTypeError(coltype2str(clo->type), "string");
                     }
                 }
