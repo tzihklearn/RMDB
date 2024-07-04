@@ -289,3 +289,10 @@ struct GroupByMete {
     GroupByMete(TabCol tab_col_, std::vector<HavingMete> having_metes_) : tab_col(std::move(tab_col_)),
                                                                           having_metes(std::move(having_metes_)) {};
 };
+
+struct SortMete {
+    TabCol tab_col;
+    bool is_desc;
+
+    SortMete(TabCol tab_col_, bool is_desc_) : tab_col(std::move(tab_col_)), is_desc(is_desc_) {};
+};

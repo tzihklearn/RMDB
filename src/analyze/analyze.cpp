@@ -140,8 +140,48 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
             }
         }
 
+        // 处理order by
+        if (x->order.operator bool()) {
+            TabCol tabCol = {.tab_name = x->order->col->tab_name, .col_name = x->order->col->col_name};
+            query->sort_mete = std::make_shared<SortMete>(tabCol,
+                                                          convert_sv_order_by_dir(x->order->orderby_dir));
+        }
+
         get_clause(x->conds, query->conds, context, query->tables[0]);
         check_clause(query->tables, query->conds);
+
+        std::map<std::string, TabCol> join_col;
+        // 处理join
+        if (query->tables.size() > 1) {
+            for (const auto &cond : query->conds) {
+                // cond.is_rhs is col
+                if (!cond.is_rhs_val && !cond.is_rhs_in) {
+                    // 处理 lhs_col
+                    if (!cond.lhs_col.tab_name.empty()) {
+                        join_col[cond.lhs_col.tab_name] = cond.lhs_col;
+                    } else {
+                        for (const auto &item: allColumns) {
+                            if (item.name == cond.lhs_col.col_name) {
+                                TabCol rhs_col = {.tab_name = item.tab_name, .col_name = cond.rhs_col.col_name};
+                                join_col[item.tab_name] = rhs_col;
+                            }
+                        }
+                    }
+                    // 处理 rhs_col
+                    if (!cond.rhs_col.tab_name.empty()) {
+                        join_col[cond.rhs_col.tab_name] = cond.rhs_col;
+                    } else {
+                        for (const auto &item: allColumns) {
+                            if (item.name == cond.rhs_col.col_name) {
+                                TabCol rhs_col = {.tab_name = item.tab_name, .col_name = cond.rhs_col.col_name};
+                                join_col[item.tab_name] = rhs_col;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        query->join_col = join_col;
 
     } else if (auto x = std::dynamic_pointer_cast<ast::UpdateStmt>(parse)) {
         std::string tableName = x->tab_name;
@@ -411,6 +451,19 @@ std::string Analyze::convert_sv_aggregate_to_str(ast::SvAggregateType type) {
             {ast::SV_AGGREGATE_NULL,  ""},
     };
     return m.at(type);
+}
+
+bool Analyze::convert_sv_order_by_dir(ast::OrderByDir orderByDir) {
+    switch (orderByDir) {
+        case ast::OrderBy_DEFAULT:
+            return true;
+        case ast::OrderBy_ASC:
+            return true;
+        case ast::OrderBy_DESC:
+            return false;
+        default:
+            throw RMDBError("order by dir error");
+    }
 }
 
 std::vector<Value> Analyze::sub_query_execution(std::shared_ptr<ast::SubSelectStmt> sub_select_stmt, Context *context) {

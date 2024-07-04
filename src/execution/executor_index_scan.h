@@ -10,6 +10,8 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <memory>
+
 #include "execution_defs.h"
 #include "execution_manager.h"
 #include "executor_abstract.h"
@@ -34,12 +36,15 @@ private:
 
     SmManager *sm_manager_;
 
+    std::unique_ptr<std::fstream> sorted_results_;
+
+    bool is_sort_;
     bool is_end_;
 
 public:
     IndexScanExecutor(SmManager *sm_manager, std::string tab_name, std::vector<Condition> conds,
                       std::vector<std::string> index_col_names,
-                      IndexMeta index_meta, Context *context) {
+                      IndexMeta index_meta, Context *context, bool is_sort) {
         sm_manager_ = sm_manager;
         context_ = context;
         tab_name_ = std::move(tab_name);
@@ -72,6 +77,7 @@ public:
         fedConditions = conditions_;
 
         is_end_ = false;
+        is_sort_ = is_sort;
 
         // 申请表级共享锁（S）
         context_->lock_mgr_->lock_shared_on_table(context_->txn_, fh_->GetFd());
@@ -241,4 +247,64 @@ public:
     std::string getType() override { return "IndexScanExecutor"; };
 
     bool is_end() const override { return is_end_; };
+
+    void set_begin() override {
+        is_end_ = false;
+        beginTuple();
+    }
+
+    void end_work() override {
+        if (is_sort_) {
+            // 输出sorted_results
+            sorted_results_ = std::make_unique<std::fstream>("sorted_results.txt", std::ios::out | std::ios::app);
+            unsigned long col_size = cols_.size();
+            int i ;
+            try {
+//            sorted_results->open("sorted_results.txt", std::ios::out | std::ios::app);
+                *sorted_results_ << "|";
+                for (i = 0; i < col_size; ++i) {
+                    *sorted_results_ << " " << cols_[i].name << " |";
+                }
+                *sorted_results_ << "\n";
+            } catch (std::exception &e) {
+                std::cerr << "execution_manager select_from show_index() only pingcas can do" << e.what() << std::endl;
+            }
+
+            set_begin();
+            while (!is_end()) {
+                auto rm = Next();
+                std::vector<std::string> columns;
+                for (auto &col: cols_) {
+                    std::string col_str;
+                    char *rec_buf = rm->data + col.offset;
+                    switch (col.type) {
+                        case TYPE_INT: {
+                            col_str = std::to_string(*(int *) rec_buf);
+                            break;
+                        }
+                        case TYPE_FLOAT: {
+                            col_str = std::to_string(*(float *) rec_buf);
+                            break;
+                        }
+                        case TYPE_STRING: {
+                            col_str = std::string((char *) rec_buf, col.len);
+                            col_str.resize(strlen(col_str.c_str()));
+                            break;
+                        }
+                        default: {
+                            throw InvalidTypeError();
+                        }
+                    }
+                    columns.push_back(col_str);
+                }
+                *sorted_results_ << "|";
+                for (const auto &column: columns) {
+                    *sorted_results_ << " " << column << " |";
+                }
+                *sorted_results_ << "\n";
+                nextTuple();
+            }
+        }
+        sorted_results_->close();
+    }
 };

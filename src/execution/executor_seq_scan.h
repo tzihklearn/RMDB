@@ -145,4 +145,17 @@ public:
     const std::vector<ColMeta> &cols() const override { return cols_; }
 
     size_t tupleLen() const override { return len_; }
+
+    virtual ColMeta get_col_offset(const TabCol &target) {
+        for (const auto &item: cols_) {
+            if (item.name == target.col_name) {
+                return item;
+            }
+        }
+        return ColMeta();
+    };
+
+    void set_begin()  {
+        beginTuple();
+    }
 };

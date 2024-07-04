@@ -84,7 +84,8 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
 
     // 1. 回滚所有写操作
     auto table_write_set = txn->get_table_write_set();
-    Context context(lock_manager_, log_manager, txn);
+    JoinStrategy js = JoinStrategy();
+    Context context(lock_manager_, log_manager, txn, &js);
     while (!table_write_set->empty()) {
         auto write_rcd = table_write_set->back();
         auto &rm_file_hdl = sm_manager_->fhs_.at(write_rcd->GetTableName());

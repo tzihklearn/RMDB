@@ -73,9 +73,10 @@ public:
     std::vector<Condition> fedConditions;
     std::vector<std::string> index_col_names_;
     IndexMeta index_meta_;
+    bool is_sort_;
 
     ScanPlan(PlanTag tag, SmManager *sm_manager, std::string tab_name, std::vector<Condition> conds,
-             std::vector<std::string> index_col_names) {
+             std::vector<std::string> index_col_names, bool is_sort) {
         Plan::tag = tag;
         tab_name_ = std::move(tab_name);
         conditions_ = std::move(conds);
@@ -84,6 +85,7 @@ public:
         len_ = cols_.back().offset + cols_.back().len;
         fedConditions = conditions_;
         index_col_names_ = index_col_names;
+        is_sort_ = is_sort;
     }
 
     ~ScanPlan() {}
@@ -91,12 +93,15 @@ public:
 
 class JoinPlan : public Plan {
 public:
-    JoinPlan(PlanTag tag, std::shared_ptr<Plan> left, std::shared_ptr<Plan> right, std::vector<Condition> conds) {
+    JoinPlan(PlanTag tag, std::shared_ptr<Plan> left, std::shared_ptr<Plan> right, std::vector<Condition> conds, bool is_reversal_join,
+             bool is_time_delay = false) {
         Plan::tag = tag;
         left_ = std::move(left);
         right_ = std::move(right);
         conds_ = std::move(conds);
         type = INNER_JOIN;
+        is_reversal_join_ = is_reversal_join;
+        is_time_delay_ = is_time_delay;
     }
 
     ~JoinPlan() {}
@@ -109,6 +114,8 @@ public:
     std::vector<Condition> conds_;
     // future TODO: 后续可以支持的连接类型
     JoinType type;
+    bool is_reversal_join_;
+    bool is_time_delay_ ;
 };
 
 class ProjectionPlan : public Plan {
@@ -128,19 +135,19 @@ public:
 
 class SortPlan : public Plan {
 public:
-    SortPlan(PlanTag tag, std::shared_ptr<Plan> subplan, TabCol sel_col, bool is_desc) {
+    SortPlan(PlanTag tag, std::shared_ptr<Plan> subplan, TabCol sel_col, bool is_desc, bool is_out) {
         Plan::tag = tag;
         subplan_ = std::move(subplan);
         sel_col_ = sel_col;
         is_desc_ = is_desc;
+        is_out_ = is_out;
     }
-
     ~SortPlan() {}
 
     std::shared_ptr<Plan> subplan_;
     TabCol sel_col_;
     bool is_desc_;
-
+    bool is_out_;
 };
 
 // dml语句，包括insert; delete; update; select语句　

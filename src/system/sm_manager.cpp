@@ -97,9 +97,21 @@ void SmManager::open_db(const std::string &db_name) {
     std::ifstream ifs(DB_META_NAME);
     ifs >> db_;
     ifs.close();
-    for (auto &[table_name, table_meta]: db_.tabs_) {
-        fhs_.emplace(table_name, rm_manager_->open_file(table_name));
+//    for (auto &[table_name, table_meta]: db_.tabs_) {
+//        fhs_.emplace(table_name, rm_manager_->open_file(table_name));
+//    }
+    //加载当前数据库中每张表的数据文件和每个索引的文件
+    for (auto & tab : db_.tabs_) {
+        fhs_.emplace(tab.first, rm_manager_->open_file(tab.first));
+        for (const auto &index: tab.second.indexes) {
+            ihs_.emplace(ix_manager_->get_index_name(tab.first, index.cols), ix_manager_->open_index(tab.first, index.cols));
+        }
+//        //TODO:为什么是去打开字段信息而不是索引信息呢？
+//        if (!tab.second.indexes.empty()) {
+//            ihs_.emplace(ix_manager_->get_index_name(tab.first, tab.second.cols), ix_manager_->open_index(tab.first, tab.second.cols));
+//        }
     }
+
 }
 
 /**
@@ -238,6 +250,10 @@ void SmManager::drop_table(const std::string &tab_name, Context *context) {
  * @param {Context*} context
  */
 void SmManager::create_index(const std::string &tab_name, const std::vector<std::string> &col_names, Context *context) {
+    if (!db_.is_table(tab_name)) {
+        throw TableNotFoundError(tab_name);
+    }
+
     // create index加S锁
     if (context != nullptr) {
         context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
@@ -302,6 +318,9 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
         auto index_record = new IndexCreateRecord(IType::INSERT_INDEX, index_name, tab_name, col_names);
         context->txn_->append_index_create_record(index_record);
     }
+    tab.indexes.push_back(index);
+
+    flush_meta();
 }
 
 /**
