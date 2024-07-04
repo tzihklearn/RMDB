@@ -41,7 +41,7 @@ private:
 
     std::shared_ptr<Plan> physical_optimization(std::shared_ptr<Query> query, Context *context);
 
-    std::shared_ptr<Plan> make_one_rel(std::shared_ptr<Query> query);
+    std::shared_ptr<Plan> make_one_rel(std::shared_ptr<Query> query, Context *context);
 
     std::shared_ptr<Plan> generate_sort_plan(std::shared_ptr<Query> query, std::shared_ptr<Plan> plan);
 
@@ -50,6 +50,8 @@ private:
 
     std::pair<bool, IndexMeta> get_index_cols(const std::string &tab_name, std::vector<Condition> curr_conditions,
                                               std::vector<std::string> &index_col_names);
+    std::pair<bool, IndexMeta> get_index_cols_with_col(const std::string &tab_name, std::vector<Condition> curr_conditions,
+                                              std::vector<std::string> &index_col_names, std::vector<TabCol> cols);
 
     ColType interp_sv_type(ast::SvType sv_type) {
         std::map<ast::SvType, ColType> m = {

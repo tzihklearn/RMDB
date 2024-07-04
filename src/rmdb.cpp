@@ -71,7 +71,8 @@ void *client_handler(void *sock_fd) {
 
     std::string output = "establish client connection, sockfd: " + std::to_string(fd) + "\n";
     std::cout << output;
-
+    JoinStrategy js = JoinStrategy();
+    js.setSortMerge(true);
     while (true) {
         std::cout << "Waiting for request..." << std::endl;
         memset(data_recv, 0, BUFFER_LENGTH);
@@ -104,7 +105,7 @@ void *client_handler(void *sock_fd) {
         offset = 0;
 
         // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
-        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, data_send, &offset);
+        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, &js, data_send, &offset);
         SetTransaction(&txn_id, context);
 
         // 用于判断是否已经调用了yy_delete_buffer来删除buf

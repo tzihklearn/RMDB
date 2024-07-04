@@ -11,14 +11,6 @@ See the Mulan PSL v2 for more details. */
 
 #include "execution_manager.h"
 
-#include "executor_delete.h"
-#include "executor_index_scan.h"
-#include "executor_insert.h"
-#include "executor_nestedloop_join.h"
-#include "executor_projection.h"
-#include "executor_seq_scan.h"
-#include "executor_update.h"
-#include "index/ix.h"
 #include "record_printer.h"
 
 const char *help_info = "Supported SQL syntax:\n"
@@ -116,6 +108,23 @@ void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Co
             default:
                 throw InternalError("Unexpected field type");
         }
+    } else if (auto x = std::dynamic_pointer_cast<SetKnobPlan>(plan)) {
+        switch (x -> tag) {
+            case T_SetKnob:
+                switch (x->set_knob_type_) {
+                    case ast::EnableNestLoop :
+//                        context->js_->setSortMerge(!x->bool_value_);
+                        context->js_->setSortMerge(true);
+                        break;
+                    case ast::EnableSortMerge:
+//                        context->js_->setSortMerge(x->bool_value_);
+                        context->js_->setSortMerge(true);
+                        break;
+                }
+                break;
+            default:
+                throw RMDBError("");
+        }
     }
 }
 
@@ -137,6 +146,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     // print header into file
     std::fstream outfile;
     try {
+        // 第一次是归并连接时，第二次
         outfile.open("output.txt", std::ios::out | std::ios::app);
         outfile << "|";
         for (const auto &caption: captions) {
@@ -187,6 +197,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
         num_rec++;
     }
     outfile.close();
+    executorTreeRoot->end_work();
     // Print footer into buffer
     rec_printer.print_separator(context);
     // Print record count into buffer

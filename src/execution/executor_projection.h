@@ -74,4 +74,8 @@ public:
     }
 
     Rid &rid() override { return _abstract_rid; }
+
+    void end_work() override {
+        prev_->end_work();
+    }
 };

@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 #include "transaction/transaction.h"
 #include "transaction/concurrency/lock_manager.h"
 #include "recovery/log_manager.h"
+#include "join_strategy.h"
 
 class TransactionManager;
 
@@ -22,8 +23,9 @@ static int const_offset = -1;
 class Context {
 public:
     Context(LockManager *lock_mgr, LogManager *log_mgr,
-            Transaction *txn, char *data_send = nullptr, int *offset = &const_offset)
-            : lock_mgr_(lock_mgr), log_mgr_(log_mgr), txn_(txn),
+            Transaction *txn,
+            JoinStrategy *js, char *data_send = nullptr, int *offset = &const_offset)
+            : lock_mgr_(lock_mgr), log_mgr_(log_mgr), txn_(txn), js_(js),
               data_send_(data_send), offset_(offset) {
         ellipsis_ = false;
     }
@@ -32,6 +34,7 @@ public:
     LockManager *lock_mgr_;
     LogManager *log_mgr_;
     Transaction *txn_;
+    JoinStrategy *js_;
     char *data_send_;
     int *offset_;
     bool ellipsis_;

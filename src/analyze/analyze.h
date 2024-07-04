@@ -38,7 +38,10 @@ class Query{
     std::vector<AggregateMeta> aggregate_metas;
     // 聚合函数的group by
     std::vector<std::shared_ptr<GroupByMete>> group_by_cols;
-//    std::shared_ptr<GroupByMete> group_by_col;
+    // 排序
+    std::shared_ptr<SortMete> sort_mete;
+    // join_col
+    std::map<std::string, TabCol> join_col;
 
     Query()= default;
 
@@ -63,6 +66,7 @@ private:
     CompOp convert_sv_comp_op(ast::SvCompOp op);
     AggregateOp convert_sv_aggregate_op(ast::SvAggregateType type);
     std::string convert_sv_aggregate_to_str(ast::SvAggregateType type);
+    bool convert_sv_order_by_dir(ast::OrderByDir orderByDir);
     std::vector<Value> sub_query_execution(std::shared_ptr<ast::SubSelectStmt> sub_select_stmt, Context *context);
     std::shared_ptr<Query> do_sub_query_analyze(std::shared_ptr<ast::SubSelectStmt> x, Context *context);
 };

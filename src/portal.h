@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "execution/execution_sort.h"
 #include "common/common.h"
 #include "execution/execution_aggregation.h"
+#include "execution/execution_merge_sort.h"
 
 typedef enum portalTag {
     PORTAL_Invalid_Query = 0,
@@ -179,18 +180,23 @@ public:
             } else {
                 // 索引扫描
                 return std::make_unique<IndexScanExecutor>(sm_manager_, x->tab_name_, x->conditions_,
-                                                           x->index_col_names_, x->index_meta_, context);
+                                                           x->index_col_names_, x->index_meta_, context, x->is_sort_);
             }
         } else if (auto x = std::dynamic_pointer_cast<JoinPlan>(plan)) {
             std::unique_ptr<AbstractExecutor> left = convert_plan_executor(x->left_, context);
             std::unique_ptr<AbstractExecutor> right = convert_plan_executor(x->right_, context);
             std::unique_ptr<AbstractExecutor> join = std::make_unique<NestedLoopJoinExecutor>(
                     std::move(left),
-                    std::move(right), std::move(x->conds_));
+                    std::move(right), std::move(x->conds_), x->is_reversal_join_, context, x->is_time_delay_);
             return join;
         } else if (auto x = std::dynamic_pointer_cast<SortPlan>(plan)) {
+            if (context->js_->getSortMerge()) {
+                context->js_->addEId();
+                return std::make_unique<MergeSortExecutor>(convert_plan_executor(x->subplan_, context),
+                                                           x->sel_col_, x->is_desc_, context, context->js_->getEId(), x->is_out_);
+            }
             return std::make_unique<SortExecutor>(convert_plan_executor(x->subplan_, context),
-                                                  x->sel_col_, x->is_desc_);
+                                                  x->sel_col_, x->is_desc_, context);
         }
         return nullptr;
     }
