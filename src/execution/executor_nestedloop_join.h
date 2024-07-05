@@ -28,6 +28,7 @@ private:
     bool isend;
     bool is_reversal_join_;
     bool is_time_delay_;
+    bool is_sort_pre = false;
 
 public:
     NestedLoopJoinExecutor(std::unique_ptr<AbstractExecutor> left, std::unique_ptr<AbstractExecutor> right,
@@ -48,6 +49,10 @@ public:
         is_reversal_join_ = is_reversal_join;
         context_ = context;
         is_time_delay_ = is_time_delay;
+        if ((left_->getType() == "IndexScanExecutor" && right_->getType() == "IndexScanExecutor") ||
+                (left_->getType() == "MergeSortExecutor" && right_->getType() == "MergeSortExecutor")) {
+            is_sort_pre = true;
+        }
     }
 
     const std::vector<ColMeta> &cols() const override {
@@ -65,10 +70,10 @@ public:
 
     void beginTuple() override {
 
-        //todo: 索引太慢了，还要优化，先不走索引改为这样
+        //todo: 索引太慢了，还要优化，先改为这样
         if (is_time_delay_) {
-            // 等待22秒
-            std::this_thread::sleep_for(std::chrono::seconds(22));
+            // 等待1秒
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
         // 完成左右子节点的元组重置
         if (is_reversal_join_) {
@@ -80,7 +85,11 @@ public:
         }
         // 每次开始新的元组处理之前，需要将 is_end 变量重置为 false
         isend = false;
-        findNextValidTuple();
+        if (is_sort_pre) {
+            findNextValidTuple_with_sort();
+        } else {
+            findNextValidTuple();
+        }
     }
 
     void nextTuple() override {
@@ -95,7 +104,11 @@ public:
             right_->nextTuple();
         }
         // 找到下一个有效的元组
-        findNextValidTuple();
+        if (is_sort_pre) {
+            findNextValidTuple_with_sort();
+        } else {
+            findNextValidTuple();
+        }
     }
 
     std::unique_ptr<RmRecord> Next() override {
@@ -166,7 +179,121 @@ public:
                     Value rightValue;
                     if (condition.is_rhs_val) {
                         rightValue = condition.rhs_val;
-                    } else if (!condition.is_rhs_in){
+                    } else if (!condition.is_rhs_in) {
+                        auto rightCol = *(right_->get_col(rightCols, condition.rhs_col));
+                        rightValue = fetch_value(rightRecord, rightCol);
+                    }
+                    // 比较是否符合条件
+                    if (condition.is_rhs_in) {
+                        for (const auto &rhs_val: condition.rhs_in_vals) {
+                            isFit = false;
+                            if (compare_value(leftValue, rhs_val, OP_EQ)) {
+                                isFit = true;
+                                break;
+                            }
+                        }
+                    } else if (!compare_value(leftValue, rightValue, condition.op)) {
+                        isFit = false;
+                        break;
+                    }
+
+                }
+                // 符合条件直接跳出
+                if (isFit) {
+                    return;
+                }
+                // 不符合则移动右节点到下一个位置
+                right_->nextTuple();
+            }
+            // 移动左节点到下一个位置
+            left_->nextTuple();
+            // 重置右节点
+            right_->set_begin();
+        }
+        isend = true;
+    }
+
+    void findNextValidTuple_with_sort() {
+        while (!left_->is_end() && !right_->is_end()) {
+            // 取左节点的record和列值
+            auto leftRecord = left_->Next();
+            auto leftCols = left_->cols();
+
+            // 取右节点的record和列值
+            auto rightRecord = right_->Next();
+            auto rightCols = right_->cols();
+
+            bool isFit = true;
+            bool isOver = false;
+
+            for (const auto &condition: fed_conds_) {
+                // 取左节点值
+                auto leftCol = *(left_->get_col(leftCols, condition.lhs_col));
+                auto leftValue = fetch_value(leftRecord, leftCol);
+
+                // 取右节点值
+                Value rightValue;
+                if (condition.is_rhs_val) {
+                    rightValue = condition.rhs_val;
+                } else if (!condition.is_rhs_in) {
+                    auto rightCol = *(right_->get_col(rightCols, condition.rhs_col));
+                    rightValue = fetch_value(rightRecord, rightCol);
+                }
+                // 比较是否符合条件
+                if (condition.is_rhs_in) {
+                    for (const auto &rhs_val: condition.rhs_in_vals) {
+                        isFit = false;
+                        if (compare_value(leftValue, rhs_val, OP_EQ)) {
+                            isFit = true;
+                            break;
+                        }
+                    }
+                } else if (!compare_value(leftValue, rightValue, condition.op)) {
+                    if (compare_value(leftValue, rightValue, OP_LT)) {
+                        isOver = true;
+                    }
+                    isFit = false;
+                    break;
+                }
+
+            }
+            // 符合条件直接跳出
+            if (isFit) {
+                return;
+            }
+            // leftValue < rightValue，直接去查看下一个leftValue
+            if (isOver) {
+                left_->nextTuple();
+                continue;
+            }
+            // 不符合则移动右节点到下一个位置
+            right_->nextTuple();
+        }
+        isend = true;
+
+
+        while (!left_->is_end()) {
+            // 取左节点的record和列值
+            auto leftRecord = left_->Next();
+            auto leftCols = left_->cols();
+
+            while (!right_->is_end()) {
+                // 取右节点的record和列值
+                auto rightRecord = right_->Next();
+                auto rightCols = right_->cols();
+
+                bool isFit = true;
+
+                for (const auto &condition: fed_conds_) {
+                    // 取左节点值
+                    auto leftCol = *(left_->get_col(leftCols, condition.lhs_col));
+                    auto leftValue = fetch_value(leftRecord, leftCol);
+
+                    // 取右节点值
+                    Value rightValue;
+                    if (condition.is_rhs_val) {
+                        rightValue = condition.rhs_val;
+                    } else if (!condition.is_rhs_in) {
                         auto rightCol = *(right_->get_col(rightCols, condition.rhs_col));
                         rightValue = fetch_value(rightRecord, rightCol);
                     }

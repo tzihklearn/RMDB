@@ -102,7 +102,7 @@ public:
     }
 
     std::string getType() override {
-        return "SortExecutor";
+        return "MergeSortExecutor";
     }
 
 //    using RecordWithIndex = std::pair<std::unique_ptr<RmRecord>, size_t>;
@@ -124,7 +124,7 @@ public:
         // todo: std::vector<std::ifstream> file_pointers;同时打开的数量有限制，打开后要即使关闭
         // 所以现在要先将数据排好写到一个统一的文件，然后每次都去查那个文件
         // 正好题目也要求写到文件中
-        size_t chunk_size = 3000; // 假设每个内存块可以存储1000个元组
+        size_t chunk_size = 1000; // 假设每个内存块可以存储1000个元组
         int i = 0;
         int run_id = 0;
         std::vector<std::string> run_files;
@@ -139,14 +139,19 @@ public:
 //                tuples.insert(tuples.end(), rmRecords.begin(), rmRecords.end());
                 std::string file_name = output_prefix + std::to_string(run_id) + ".txt";
                 run_files.push_back(file_name);
-                std::unique_ptr<std::fstream> outfilePtr(new std::fstream(file_name));
+                std::unique_ptr<std::ofstream> outfilePtr(new std::ofstream(file_name, std::ios::out | std::ios::binary));
+                if (!outfilePtr->is_open() || !outfilePtr->good()) {
+                    std::cerr << "Failed to open file: " << file_name << std::endl;
+                    return; // 或者其他适当的错误处理
+                }
 //                std::ofstream outfilePtr(file_name);
                 // 第一个元素以及在min_heap中，不需要写入文件
-                rmRecords.erase(rmRecords.begin());
+//                rmRecords.erase(rmRecords.begin());
 
                 for (auto &record : rmRecords) {
                     outfilePtr->write(reinterpret_cast<const char*>(&record->size), sizeof(record->size));
                     outfilePtr->write(record->data, record->size);
+                    outfilePtr->flush();
                 }
 //                outfilePtr->flush();
 //                file_pointers.push_back(std::move(outfilePtr));
@@ -157,10 +162,17 @@ public:
             }
 //            tuples.push_back(std::move(tuple));
         }
+//        std::this_thread::sleep_for(std::chrono::seconds(t_num/1000));
+//        if (t_num > 10000) {
+//            std::this_thread::sleep_for(std::chrono::seconds(100));
+//        }
+
+//        std::this_thread::sleep_for(std::chrono::seconds(t_num/1000));
+//        int t_num = 0;
 
         if (!rmRecords.empty()) {
             std::sort(rmRecords.begin(), rmRecords.end(), cmp);
-            auto t_record = std::make_unique<RmRecord>(**rmRecords.begin());
+//            auto t_record = std::make_unique<RmRecord>(**rmRecords.begin());
 //            min_heap.emplace(std::move(t_record), run_id);
 //                tuples.insert(tuples.end(), rmRecords.begin(), rmRecords.end());
             std::string file_name = output_prefix + std::to_string(run_id) + ".txt";
@@ -173,6 +185,7 @@ public:
             for (auto &record : rmRecords) {
                 outfilePtr->write(reinterpret_cast<const char*>(&record->size), sizeof(record->size));
                 outfilePtr->write(record->data, record->size);
+                outfilePtr->flush();
             }
 //            outfilePtr->flush();
 //            file_pointers.push_back(std::move(outfilePtr));
@@ -198,7 +211,11 @@ public:
             }
         }
 
+//        std::this_thread::sleep_for(std::chrono::seconds(t_num/1000));
+
+//        int t_num = 0;
         // left
+        bool is_not_ok = true;
         if (is_out) {
             std::unique_ptr<std::fstream> sorted_results(new std::fstream("sorted_results.txt", std::ios::out | std::ios::app));
             auto cols = prev->cols();
@@ -213,9 +230,12 @@ public:
             } catch (std::exception &e) {
                 std::cerr << "execution_manager select_from show_index() only pingcas can do" << e.what() << std::endl;
             }
+            sorted_results->flush();
 
-            std::unique_ptr<std::ofstream> merge_sort_file_out(new std::ofstream(sort_prefix));
+            std::unique_ptr<std::ofstream> merge_sort_file_out(new std::ofstream(sort_prefix, std::ios::out | std::ios::binary));
+
             while (!min_heap.empty()) {
+//                ++t_num;
                 // 取出堆顶元素
                 auto top = std::move(const_cast<RecordWithIndex&>(min_heap.top()));
 
@@ -272,22 +292,28 @@ public:
                     char *data = new char[size];
                     file_pointers[merge_idx]->read(data, size);
                     min_heap.emplace(std::make_unique<RmRecord>(size, data), merge_idx);
-                } else {
-                    auto t_re = std::make_unique<RmRecord>();
+                } else if (is_not_ok){
+//                    auto t_re = std::make_unique<RmRecord>();
+                    bool is_emplace = false;
                     for (i = 0; i < file_pointers.size(); ++i) {
                         if (file_pointers[i]->read(reinterpret_cast<char*>(&size), sizeof(size))) {
                             char *data = new char[size];
                             file_pointers[i]->read(data, size);
                             auto t = std::make_unique<RmRecord>(size, data);
-                            if (!t_re->allocated_ || cmp(t_re, t)){
-                                t_re = std::make_unique<RmRecord>(*t);
-                                merge_idx = i;
-                            }
+//                            if (!t_re->allocated_ || cmp(t_re, t)){
+//                                t_re = std::make_unique<RmRecord>(*t);
+//                                merge_idx = i;
+//                            }
+                            min_heap.emplace(std::move(t), i);
+                            is_emplace = true;
                         }
                     }
-                    if (t_re->allocated_) {
-                        min_heap.emplace(std::move(t_re), merge_idx);
+                    if (!is_emplace) {
+                        is_not_ok = false;
                     }
+//                    if (t_re->allocated_) {
+//                        min_heap.emplace(std::move(t_re), merge_idx);
+//                    }
                 }
             }
 
@@ -300,6 +326,7 @@ public:
 
             std::unique_ptr<std::ofstream> merge_sort_file_out(new std::ofstream(sort_prefix));
             while (!min_heap.empty()) {
+//                ++t_num;
                 // 取出堆顶元素
                 auto top = std::move(const_cast<RecordWithIndex&>(min_heap.top()));
 
@@ -351,22 +378,28 @@ public:
                     char *data = new char[size];
                     file_pointers[merge_idx]->read(data, size);
                     min_heap.emplace(std::make_unique<RmRecord>(size, data), merge_idx);
-                } else {
-                    auto t_re = std::make_unique<RmRecord>();
+                } else if (is_not_ok){
+//                    auto t_re = std::make_unique<RmRecord>();
+                    bool is_emplace = false;
                     for (i = 0; i < file_pointers.size(); ++i) {
                         if (file_pointers[i]->read(reinterpret_cast<char*>(&size), sizeof(size))) {
                             char *data = new char[size];
                             file_pointers[i]->read(data, size);
                             auto t = std::make_unique<RmRecord>(size, data);
-                            if (!t_re->allocated_ || cmp(t_re, t)){
-                                t_re = std::make_unique<RmRecord>(*t);
-                                merge_idx = i;
-                            }
+//                            if (!t_re->allocated_ || cmp(t_re, t)){
+//                                t_re = std::make_unique<RmRecord>(*t);
+//                                merge_idx = i;
+//                            }
+                            min_heap.emplace(std::move(t), i);
+                            is_emplace = true;
                         }
                     }
-                    if (t_re->allocated_) {
-                        min_heap.emplace(std::move(t_re), merge_idx);
+                    if (!is_emplace) {
+                        is_not_ok = false;
                     }
+//                    if (t_re->allocated_) {
+//                        min_heap.emplace(std::move(t_re), merge_idx);
+//                    }
                 }
             }
 
@@ -374,6 +407,7 @@ public:
             merge_sort_file_out->close();
         }
 
+//        std::this_thread::sleep_for(std::chrono::seconds(t_num/100));
 
         for (auto& file_ptr : file_pointers) {
             if (file_ptr->is_open()) {
@@ -382,7 +416,7 @@ public:
         }
         file_pointers.clear();
 
-        merge_sort_file = std::make_unique<std::ifstream>(std::ifstream(sort_prefix));
+        merge_sort_file = std::make_unique<std::ifstream>(std::ifstream(sort_prefix, std::ios::binary));
 
 //        for (i = 0; i < file_pointers.size(); ++i) {
 //            int size;
