@@ -156,11 +156,15 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     } catch (std::exception &e) {
         std::cerr << "execution_manager select_from show_index() only pingcas can do" << e.what() << std::endl;
     }
+    outfile.flush();
 
     // Print records
     size_t num_rec = 0;
     // 执行query_plan
     for (executorTreeRoot->beginTuple(); !executorTreeRoot->is_end(); executorTreeRoot->nextTuple()) {
+//        if (num_rec == 0) {
+//            std::this_thread::sleep_for(std::chrono::seconds(100));
+//        }
         auto Tuple = executorTreeRoot->Next();
         std::vector<std::string> columns;
         for (auto &col: executorTreeRoot->cols()) {
@@ -194,6 +198,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
             outfile << " " << column << " |";
         }
         outfile << "\n";
+        outfile.flush();
         num_rec++;
     }
     outfile.close();
@@ -202,6 +207,7 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     rec_printer.print_separator(context);
     // Print record count into buffer
     RecordPrinter::print_record_count(num_rec, context);
+
     // 获取当前时间
     auto end_time = time(nullptr);
     std::cout << "Select using " << end_time - startTime << " seconds\n";
