@@ -86,38 +86,31 @@ std::pair<bool, IndexMeta> Planner::get_index_cols_with_col(const std::string &t
     std::unordered_map<size_t, std::vector<size_t>> conditionIndexMap;
     for (size_t i = 0; i < curr_conditions.size(); ++i) {
         const Condition &cond = curr_conditions[i];
-        if (cond.is_rhs_val && cond.lhs_col.tab_name == tab_name) {
+        if (cond.lhs_col.tab_name == tab_name && (cond.is_rhs_val || !cond.is_rhs_in)) {
             for (size_t j = 0; j < indexes.size(); ++j) {
                 if (indexes[j].contains_column(cond.lhs_col.col_name)) {
                     conditionIndexMap[j].push_back(i);
-                    break;
-                }
-            }
-        } else if (!cond.is_rhs_in && !cond.is_rhs_val && cond.lhs_col.tab_name == tab_name) {
-            for (size_t j = 0; j < indexes.size(); ++j) {
-                if (indexes[j].contains_column(cond.lhs_col.col_name)) {
-                    conditionIndexMap[j].push_back(i);
-                    break;
+                    break; // break here ensures a condition is mapped to only one index
                 }
             }
         }
     }
 
     // 遍历索引，选择满足条件的最佳索引
-    size_t bestIndex = 0;
+    size_t bestIndex = SIZE_MAX;
     size_t bestMatchedCount = 0;
     for (const auto &entry: conditionIndexMap) {
         size_t indexId = entry.first;
         const std::vector<size_t> &matchedConditions = entry.second;
-        if (matchedConditions.size() > bestMatchedCount &&
-            matchedConditions.size() == indexes[indexId].get_column_count()) {
+        if (matchedConditions.size() > bestMatchedCount ||
+            (matchedConditions.size() == bestMatchedCount && indexId < bestIndex)) {
             bestIndex = indexId;
             bestMatchedCount = matchedConditions.size();
         }
     }
 
-    // 根据最佳索引选择相应的条件顺序
-    if (bestMatchedCount > 0) {
+    // 如果找到最佳索引，根据最佳索引选择相应的条件顺序
+    if (bestMatchedCount > 0 && bestIndex != SIZE_MAX) {
         const std::vector<size_t> &matchedConditions = conditionIndexMap[bestIndex];
         for (size_t i: matchedConditions) {
             index_col_names.push_back(curr_conditions[i].lhs_col.col_name);
@@ -125,44 +118,44 @@ std::pair<bool, IndexMeta> Planner::get_index_cols_with_col(const std::string &t
         return std::make_pair(true, indexes[bestIndex]);
     }
 
-    if (conditionIndexMap.empty() && !indexes.empty()) {
-        for (size_t i = 0; i < cols.size(); ++i) {
-            if (cols[i].tab_name == tab_name) {
-                for (size_t j = 0; j < indexes.size(); ++j) {
-                    if (indexes[j].contains_column(cols[i].col_name)) {
-                        conditionIndexMap[j].push_back(i);
-                        break;
-                    }
+    // 如果当前条件无法匹配任何索引，尝试使用所有列中的索引
+    conditionIndexMap.clear();
+    for (size_t i = 0; i < cols.size(); ++i) {
+        if (cols[i].tab_name == tab_name) {
+            for (size_t j = 0; j < indexes.size(); ++j) {
+                if (indexes[j].contains_column(cols[i].col_name)) {
+                    conditionIndexMap[j].push_back(i);
+                    break; // break here ensures a column is mapped to only one index
                 }
             }
         }
+    }
 
-        // 遍历索引，选择满足条件的最佳索引
-        bestIndex = 0;
-        bestMatchedCount = 0;
-        for (const auto &entry: conditionIndexMap) {
-            size_t indexId = entry.first;
-            const std::vector<size_t> &matchedConditions = entry.second;
-            if (matchedConditions.size() > bestMatchedCount &&
-                matchedConditions.size() == indexes[indexId].get_column_count()) {
-                bestIndex = indexId;
-                bestMatchedCount = matchedConditions.size();
-            }
-        }
-
-        // 根据最佳索引选择相应的条件顺序
-        if (bestMatchedCount > 0) {
-            const std::vector<size_t> &matchedConditions = conditionIndexMap[bestIndex];
-            for (size_t i: matchedConditions) {
-                index_col_names.push_back(cols[i].col_name);
-            }
-            return std::make_pair(true, indexes[bestIndex]);
+    // 遍历索引，选择满足条件的最佳索引
+    bestIndex = SIZE_MAX;
+    bestMatchedCount = 0;
+    for (const auto &entry: conditionIndexMap) {
+        size_t indexId = entry.first;
+        const std::vector<size_t> &matchedConditions = entry.second;
+        if (matchedConditions.size() > bestMatchedCount ||
+            (matchedConditions.size() == bestMatchedCount && indexId < bestIndex)) {
+            bestIndex = indexId;
+            bestMatchedCount = matchedConditions.size();
         }
     }
 
+    // 如果找到最佳索引，根据最佳索引选择相应的条件顺序
+    if (bestMatchedCount > 0 && bestIndex != SIZE_MAX) {
+        const std::vector<size_t> &matchedConditions = conditionIndexMap[bestIndex];
+        for (size_t i: matchedConditions) {
+            index_col_names.push_back(cols[i].col_name);
+        }
+        return std::make_pair(true, indexes[bestIndex]);
+    }
+
+    // 没有找到任何匹配的索引
     return std::make_pair(false, IndexMeta());
 }
-
 
 /**
  * @brief 表算子条件谓词生成
@@ -180,7 +173,7 @@ std::vector<Condition> pop_conds(std::vector<Condition> &conditions, std::string
             (it->lhs_col.tab_name == it->rhs_col.tab_name)) {
             solvedConditions.emplace_back(std::move(*it));
             it = conditions.erase(it);
-        } else if(tab_names == it->rhs_col.tab_name && !it->is_rhs_val && !it->is_rhs_in) {
+        } else if (tab_names == it->rhs_col.tab_name && !it->is_rhs_val && !it->is_rhs_in) {
             Condition t = *it;
             std::swap(t.lhs_col, t.rhs_col);
             std::map<CompOp, CompOp> swap_op = {
@@ -328,10 +321,12 @@ std::shared_ptr<Plan> Planner::make_one_rel(std::shared_ptr<Query> query, Contex
             is_time_delay = true;
 
             index_col_names.clear();
-            auto scanPlan = std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, tables[i], curr_conds, index_col_names, false);
+            auto scanPlan = std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, tables[i], curr_conds, index_col_names,
+                                                       false);
             if (flag && context->js_->getSortMerge()) {
                 table_scan_executors[i] =
-                        std::make_shared<SortPlan>(T_SortMerge, std::move(scanPlan), query->join_col[tables[i]], false, true);
+                        std::make_shared<SortPlan>(T_SortMerge, std::move(scanPlan), query->join_col[tables[i]], false,
+                                                   true);
             } else {
                 table_scan_executors[i] = scanPlan;
             }
@@ -551,7 +546,8 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
         if (!index_exist) {  // 该表没有索引
             index_col_names.clear();
             table_scan_executors =
-                    std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, x->tab_name, query->conds, index_col_names, false);
+                    std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, x->tab_name, query->conds, index_col_names,
+                                               false);
         } else {  // 存在索引
             auto index_scan = std::make_shared<ScanPlan>(T_IndexScan, sm_manager_, x->tab_name, query->conds,
                                                          index_col_names, true);
@@ -572,7 +568,8 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
         if (!index_exist) {  // 该表没有索引
             index_col_names.clear();
             table_scan_executors =
-                    std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, x->tab_name, query->conds, index_col_names, false);
+                    std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, x->tab_name, query->conds, index_col_names,
+                                               false);
         } else {  // 存在索引
             auto index_scan = std::make_shared<ScanPlan>(T_IndexScan, sm_manager_, x->tab_name, query->conds,
                                                          index_col_names, true);
@@ -593,11 +590,14 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
 
             // TODO: 未处理索引
             // 设置扫描表的执行计划
-            table_scan_plan = std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, query->tables[0], query->conds, std::vector<std::string>(),
+            table_scan_plan = std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, query->tables[0], query->conds,
+                                                         std::vector<std::string>(),
                                                          false);
 
             // 设置聚合函数的执行计划，将表扫描的执行计划作为子计划
-            auto aggregatePlan = std::make_shared<DMLPlan>(T_SvAggregate, table_scan_plan,  query->tables[0], std::vector<Value>() , query->conds, std::vector<SetClause>());
+            auto aggregatePlan = std::make_shared<DMLPlan>(T_SvAggregate, table_scan_plan, query->tables[0],
+                                                           std::vector<Value>(), query->conds,
+                                                           std::vector<SetClause>());
             aggregatePlan->aggregationMetas_ = query->aggregate_metas;
             aggregatePlan->group_by_cols_ = query->group_by_cols;
 
@@ -610,7 +610,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
             plannerRoot = std::make_shared<DMLPlan>(T_Select, projection, std::string(), std::vector<Value>(),
                                                     std::vector<Condition>(), std::vector<SetClause>());
         }
-    }  else if (auto x = std::dynamic_pointer_cast<ast::SetStmt>(query->parse)) {
+    } else if (auto x = std::dynamic_pointer_cast<ast::SetStmt>(query->parse)) {
         // 生成环境变量设置plan
         plannerRoot = std::make_shared<SetKnobPlan>(x->set_knob_type_, x->bool_val_);
     } else {

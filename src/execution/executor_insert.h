@@ -19,11 +19,11 @@ See the Mulan PSL v2 for more details. */
 
 class InsertExecutor : public AbstractExecutor {
 private:
-    TabMeta tab_;                   // 表的元数据
-    std::vector<Value> values_;     // 需要插入的数据
-    RmFileHandle *fh_;              // 表的数据文件句柄
-    std::string tab_name_;          // 表名称
-    Rid rid_;                       // 插入的位置，由于系统默认插入时不指定位置，因此当前rid_在插入后才赋值
+    TabMeta tab_;
+    std::vector<Value> values_;
+    RmFileHandle *fh_;
+    std::string tab_name_;
+    Rid rid_;
     SmManager *sm_manager_;
 
 public:
@@ -39,7 +39,9 @@ public:
         context_ = context;
 
         // 申请表级意向写锁（IX）
-        context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
+        if (context_ != nullptr) {
+            context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
+        }
     }
 
     std::unique_ptr<RmRecord> Next() override {
@@ -58,8 +60,8 @@ public:
         // 插入记录到文件并获取新的rid
         rid_ = fh_->insert_record(rec.data, context_);
 
-        // 申请行级排他锁（X）
-//        context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid_, fh_->GetFd());
+        // 申请行级排他锁（X锁）
+        context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid_, fh_->GetFd());
 
         // 记录事务日志
         Transaction *txn = context_->txn_;
@@ -71,28 +73,28 @@ public:
         context_->txn_->append_table_write_record(write_rcd);
 
         // 插入索引条目
-        try {
-            for (auto &index: tab_.indexes) {
-                auto ih = sm_manager_->ihs_.at(
-                        sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+        for (auto &index: tab_.indexes) {
+            auto ih = sm_manager_->ihs_.at(
+                    sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
 
-                std::vector<char> key(index.col_tot_len);
-                int offset = 0;
-                for (size_t i = 0; i < index.col_num; ++i) {
-                    memcpy(key.data() + offset, rec.data + index.cols[i].offset, index.cols[i].len);
-                    offset += index.cols[i].len;
-                }
+            std::vector<char> key(index.col_tot_len);
+            int offset = 0;
+            for (size_t i = 0; i < index.col_num; ++i) {
+                memcpy(key.data() + offset, rec.data + index.cols[i].offset, index.cols[i].len);
+                offset += index.cols[i].len;
+            }
 
+            try {
                 ih->insert_entry(key.data(), rid_, context_->txn_);
                 auto *index_rcd = new IndexWriteRecord(WType::INSERT_TUPLE, tab_name_, rid_, key.data(),
                                                        index.col_tot_len);
                 context_->txn_->append_index_write_record(index_rcd);
+            } catch (InternalError &error) {
+                // 回滚操作
+                fh_->delete_record(rid_, context_);
+                context_->txn_->set_state(TransactionState::ABORTED);
+                throw InternalError("Non-unique index!");
             }
-        } catch (InternalError &error) {
-            // 回滚操作
-            fh_->delete_record(rid_, context_);
-            context_->txn_->set_state(TransactionState::ABORTED);  // 将事务状态设置为已中止
-            throw InternalError("Non-unique index!");
         }
 
         return nullptr;

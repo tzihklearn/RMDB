@@ -18,15 +18,15 @@ See the Mulan PSL v2 for more details. */
 
 class SeqScanExecutor : public AbstractExecutor {
 private:
-    std::string tab_name_;                 // 表的名称
-    std::vector<Condition> conditions_;    // scan的条件
-    RmFileHandle *fh_;                     // 表的数据文件句柄
-    std::vector<ColMeta> cols_;            // scan后生成的记录的字段
-    size_t len_;                           // scan后生成的每条记录的长度
-    std::vector<Condition> fedConditions;  // 同Condition，两个字段相同
+    std::string tab_name_;
+    std::vector<Condition> conditions_;
+    RmFileHandle *fh_;
+    std::vector<ColMeta> cols_;
+    size_t len_;
+    std::vector<Condition> fedConditions;
 
     Rid rid_;
-    std::unique_ptr<RecScan> scan_;        // table_iterator
+    std::unique_ptr<RecScan> scan_;
 
     SmManager *sm_manager_;
 
@@ -45,24 +45,19 @@ public:
         fedConditions = conditions_;
 
         // 申请表级共享锁（S）
-        if (context != nullptr) {
-            context->lock_mgr_->lock_shared_on_table(context->txn_, fh_->GetFd());
+        if(context_!= nullptr){
+            context_->lock_mgr_->lock_shared_on_table(context_->txn_, fh_->GetFd());
         }
     }
 
     bool is_fed_cond(const std::vector<ColMeta> &rec_cols, const Condition &cond, const RmRecord *target) {
-        // 获取左操作数的colMeta
-        auto lhsCol = cond.lhs_col;
-        auto lhsColMeta = *get_col(rec_cols, lhsCol);
+        auto lhsColMeta = *get_col(rec_cols, cond.lhs_col);
 
-        // 如果右操作数是Col类型，获取右操作数的ColMeta
         ColMeta rhsColMeta;
         if (!cond.is_rhs_val && !cond.is_rhs_in) {
-            auto rhsCol = cond.rhs_col;
-            rhsColMeta = *get_col(rec_cols, rhsCol);
+            rhsColMeta = *get_col(rec_cols, cond.rhs_col);
         }
 
-        // 比较lhs和rhs的值
         auto rmRecord = std::make_unique<RmRecord>(*target);
         auto lhsVal = fetch_value(rmRecord, lhsColMeta);
         Value rhsVal;
@@ -84,7 +79,6 @@ public:
         }
     }
 
-    // 判断记录是否满足所有条件
     bool record_satisfies_conditions(const std::vector<ColMeta> &rec_cols, const std::vector<Condition> &conditions,
                                      const RmRecord *record) {
         return std::all_of(conditions.begin(), conditions.end(), [&](const Condition &cond) {
@@ -93,40 +87,33 @@ public:
     }
 
     void beginTuple() override {
-        // 获取一个RmScan对象的指针,赋值给算子的变量scan_
         scan_ = std::make_unique<RmScan>(fh_);
 
-        // 用seq_scan来对表中的所有非空闲字段进行遍历，逐个判断是否满足所有条件
+        // 扫描表中所有记录，找到第一个满足条件的记录
         while (!scan_->is_end()) {
-            // 通过RmFileHandle获取到seq_scan扫描到的record并封装为RmRecord对象
+            // 申请行级共享锁（S锁）
+            context_->lock_mgr_->lock_shared_on_record(context_->txn_, scan_->rid(), fh_->GetFd());
+
             auto record = fh_->get_record(scan_->rid(), context_);
-
-            // 检查是否满足所有条件
-            if (record_satisfies_conditions(cols_, fedConditions, record.get())) {
+            if (record_satisfies_conditions(cols_, conditions_, record.get())) {
                 rid_ = scan_->rid();
-                // 申请行级共享锁（S）
-//                context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
-                break;
+                return;
             }
-
             scan_->next();
         }
     }
 
     void nextTuple() override {
-        // 申请行级共享锁（S）
-//        context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
-
         assert(!is_end());
-        // 继续查询下一个满足conds的record
+        // 继续扫描下一个满足条件的记录
         for (scan_->next(); !scan_->is_end(); scan_->next()) {
-            // 通过RmFileHandle获取到seq_scan扫描到的record并封装为RmRecord对象
-            auto record = fh_->get_record(scan_->rid(), context_);
+            // 申请行级共享锁（S锁）
+            context_->lock_mgr_->lock_shared_on_record(context_->txn_, scan_->rid(), fh_->GetFd());
 
-            // 检查是否满足所有条件
+            auto record = fh_->get_record(scan_->rid(), context_);
             if (record_satisfies_conditions(cols_, fedConditions, record.get())) {
                 rid_ = scan_->rid();
-                break;
+                return;
             }
         }
     }
@@ -155,7 +142,7 @@ public:
         return ColMeta();
     };
 
-    void set_begin()  {
+    void set_begin() {
         beginTuple();
     }
 };

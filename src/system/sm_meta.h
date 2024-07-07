@@ -73,6 +73,13 @@ struct IndexMeta {
         return false;
     }
 
+    const std::string &get_column_name(size_t index) const {
+        if (index >= cols.size()) {
+            throw std::out_of_range("Index is out of range");
+        }
+        return cols[index].name;
+    }
+
     unsigned long get_column_count() {
         return cols.size();
     }

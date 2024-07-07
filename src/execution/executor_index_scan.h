@@ -50,8 +50,8 @@ public:
         tab_name_ = std::move(tab_name);
         tab_ = sm_manager_->db_.get_table(tab_name_);
         conditions_ = std::move(conds);
-        index_col_names_ = index_col_names;
-        index_meta_ = index_meta;
+        index_col_names_ = std::move(index_col_names);
+        index_meta_ = std::move(index_meta);
         fh_ = sm_manager_->fhs_.at(tab_name_).get();
         auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index_meta_.cols);
         ih_ = sm_manager_->ihs_.at(index_name).get();
@@ -80,13 +80,12 @@ public:
         is_sort_ = is_sort;
 
         // 申请表级共享锁（S）
-        context_->lock_mgr_->lock_shared_on_table(context_->txn_, fh_->GetFd());
+        if(context_!= nullptr){
+            context_->lock_mgr_->lock_shared_on_table(context_->txn_, fh_->GetFd());
+        }
     }
 
     void beginTuple() override {
-        // 申请行级共享锁（S）
-        context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
-
         // 计算扫描范围
         RmRecord lower_key(index_meta_.col_tot_len), upper_key(index_meta_.col_tot_len);
 
@@ -168,6 +167,10 @@ public:
 
         while (!scan_->is_end()) {
             rid_ = scan_->rid();
+
+            // 申请行级共享锁（S锁）
+            context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
+
             auto record = fh_->get_record(rid_, context_);
             bool is_fit = true;
             for (const auto &fedCond: fedConditions) {
@@ -202,6 +205,10 @@ public:
         scan_->next();
         while (!scan_->is_end()) {
             rid_ = scan_->rid();
+
+            // 申请行级共享锁（S锁）
+            context_->lock_mgr_->lock_shared_on_record(context_->txn_, rid_, fh_->GetFd());
+
             auto record = fh_->get_record(rid_, context_);
             bool is_fit = true;
             for (const auto &fedCond: fedConditions) {
@@ -258,7 +265,7 @@ public:
             // 输出sorted_results
             sorted_results_ = std::make_unique<std::fstream>("sorted_results.txt", std::ios::out | std::ios::app);
             unsigned long col_size = cols_.size();
-            int i ;
+            int i;
             try {
 //            sorted_results->open("sorted_results.txt", std::ios::out | std::ios::app);
                 *sorted_results_ << "|";

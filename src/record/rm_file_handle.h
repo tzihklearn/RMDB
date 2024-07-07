@@ -10,9 +10,8 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include <assert.h>
-
 #include <memory>
+#include <shared_mutex>
 
 #include "bitmap.h"
 #include "common/context.h"
@@ -28,13 +27,14 @@ struct RmPageHandle {
     char *bitmap;               // page->data的第二部分，存储页面的bitmap，指针指向首地址，长度为file_hdr->bitmap_size
     char *slots;                // page->data的第三部分，存储表的记录，指针指向首地址，每个slot的长度为file_hdr->record_size
 
-    RmPageHandle(const RmFileHdr *fhdr_, Page *page_) : file_hdr(fhdr_), page(page_) {
+    RmPageHandle(const RmFileHdr *fhdr_, Page *page_)
+            : file_hdr(fhdr_), page(page_) {
         page_hdr = reinterpret_cast<RmPageHdr *>(page->get_data() + page->OFFSET_PAGE_HDR);
         bitmap = page->get_data() + sizeof(RmPageHdr) + page->OFFSET_PAGE_HDR;
         slots = bitmap + file_hdr->bitmap_size;
     }
 
-    // 返回指定slot_no的slot存储收地址
+    // 返回指定slot_no的slot存储地址
     char *get_slot(int slot_no) const {
         return slots + slot_no * file_hdr->record_size;  // slots的首地址 + slot个数 * 每个slot的大小(每个record的大小)
     }
@@ -53,7 +53,7 @@ private:
     RmFileHdr file_hdr_;    // 文件头，维护当前表文件的元数据
 
     // 锁
-    std::mutex latch_;
+    mutable std::shared_mutex latch_;
 
 public:
     RmFileHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd)
