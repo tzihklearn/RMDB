@@ -198,6 +198,8 @@ private:
 public:
     IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd);
 
+    ~IxIndexHandle();
+
     void unlock_all_latch(Transaction *txn) {
         if (txn == nullptr) {
             //啥也不做.
@@ -307,4 +309,6 @@ private:
 
     // for index test
     Rid get_rid(const Iid &iid) const;
+
+    int get_key(Iid iid) const;
 };

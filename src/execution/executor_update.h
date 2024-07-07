@@ -18,12 +18,12 @@ See the Mulan PSL v2 for more details. */
 
 class UpdateExecutor : public AbstractExecutor {
 private:
-    TabMeta tab_;                           // 表中的元数据
-    std::vector<Condition> conds_;          // 更新的条件
-    RmFileHandle *fh_;                      // 表的数据文件句柄
-    std::vector<Rid> rids_;                 // 可能需要更新的位置
-    std::string tab_name_;                  // 表名
-    std::vector<SetClause> set_clauses_;    // 需要更新的字段和值
+    TabMeta tab_;
+    std::vector<Condition> conds_;
+    RmFileHandle *fh_;
+    std::vector<Rid> rids_;
+    std::string tab_name_;
+    std::vector<SetClause> set_clauses_;
     SmManager *sm_manager_;
 
 public:
@@ -39,13 +39,15 @@ public:
         context_ = context;
 
         // 申请表级意向写锁（IX）
-        context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
+        if (context_ != nullptr) {
+            context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
+        }
     }
 
     std::unique_ptr<RmRecord> Next() override {
         for (auto &rid: rids_) {
-            // 申请行级排他锁（X）
-//            context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd());
+            // 申请行级排他锁（X锁）
+            context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd());
 
             auto rec = fh_->get_record(rid, context_);
 
@@ -131,7 +133,7 @@ public:
                 throw InternalError("index Error");
             }
         }
-        return nullptr; // 返回nullptr表示没有更多元组
+        return nullptr;
     }
 
     Rid &rid() override { return _abstract_rid; }

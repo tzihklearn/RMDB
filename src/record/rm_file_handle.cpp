@@ -1,14 +1,5 @@
-/* Copyright (c) 2023 Renmin University of China
-RMDB is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
-        http://license.coscl.org.cn/MulanPSL2
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-See the Mulan PSL v2 for more details. */
-
 #include "rm_file_handle.h"
+#include <shared_mutex>
 
 /**
  * @description: 获取当前表中记录号为rid的记录
@@ -17,15 +8,18 @@ See the Mulan PSL v2 for more details. */
  * @return {unique_ptr<RmRecord>} rid对应的记录对象指针
  */
 std::unique_ptr<RmRecord> RmFileHandle::get_record(const Rid &rid, Context *context) const {
-    // get record加S锁
-    if (context != nullptr) {
-        context->lock_mgr_->lock_shared_on_record(context->txn_, rid, fd_);
-    }
+    // 加共享锁保护数据结构
+    std::shared_lock<std::shared_mutex> lock{latch_};
 
-    // 1.获取记录所在的page handle
+//    // 对record加S锁
+//    if (context != nullptr) {
+//        context->lock_mgr_->lock_shared_on_record(context->txn_, rid, fd_);
+//    }
+
+    // 获取记录所在的page handle
     RmPageHandle page_hdl = fetch_page_handle(rid.page_no);
 
-    // 2. 初始化一个指向RmRecord的指针（赋值其内部的data和size）
+    // 初始化一个指向RmRecord的指针（赋值其内部的data和size）
     int record_size = file_hdr_.record_size;
     auto rm_rcd = std::make_unique<RmRecord>(record_size);
 
@@ -48,36 +42,40 @@ std::unique_ptr<RmRecord> RmFileHandle::get_record(const Rid &rid, Context *cont
  * @return {Rid} 插入的记录的记录号（位置）
  */
 Rid RmFileHandle::insert_record(char *buf, Context *context) {
-    // 1.获取当前未满的page handle
+    // 加独占锁保护数据结构
+    std::unique_lock<std::shared_mutex> lock{latch_};
+
+    // 获取当前未满的page handle
     RmPageHandle page_hdl = create_page_handle();
 
-    // 2.在page_hdl中找到空闲slot位置
+    // 在page_hdl中找到空闲slot位置
     int record_size = file_hdr_.record_size;
     int record_nums = file_hdr_.num_records_per_page;
     int slot_no = Bitmap::first_bit(false, page_hdl.bitmap, record_nums);
     if (slot_no == record_nums) {
+        buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
         throw InvalidSlotNoError(slot_no, record_nums);
     }
 
-    // insert_entry对record加X锁
-    if (context != nullptr) {
-        auto rid = Rid{.page_no = page_hdl.page->get_page_id().page_no, .slot_no = slot_no};
-        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
-    }
+//    // 对record加X锁
+//    if (context != nullptr) {
+//        auto rid = Rid{.page_no = page_hdl.page->get_page_id().page_no, .slot_no = slot_no};
+//        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+//    }
 
-    // 3.将buf复制到空闲slot位置
+    // 将buf复制到空闲slot位置
     char *slot_ptr = page_hdl.get_slot(slot_no);
     std::memcpy(slot_ptr, buf, record_size);
     Bitmap::set(page_hdl.bitmap, slot_no);
 
-    // 4.更新page_handle.page_hdr的数据结构
-    // 4.1 当插入该record以后，该页面满了，更新RmFileHdr的first_page_no
+    // 更新page_handle.page_hdr的数据结构
     if (++page_hdl.page_hdr->num_records == record_nums) {
         file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
     }
 
     buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
-    // 5.返回新插入的record的rid
+
+    // 返回新插入的record的rid
     return Rid{page_hdl.page->get_page_id().page_no, slot_no};
 }
 
@@ -87,16 +85,20 @@ Rid RmFileHandle::insert_record(char *buf, Context *context) {
  * @param {char*} buf 要插入记录的数据
  */
 void RmFileHandle::insert_record(const Rid &rid, char *buf) {
-    std::scoped_lock lock{latch_};
+    // 加独占锁保护数据结构
+    std::unique_lock<std::shared_mutex> lock{latch_};
 
-    // 1.判断指定位置是否空闲，若不空闲则返回异常
+    // 判断指定位置是否空闲，若不空闲则返回异常
     RmPageHandle page_hdl = fetch_page_handle(rid.page_no);
-    assert(Bitmap::is_set(page_hdl.bitmap, rid.slot_no));
+    if (!Bitmap::is_set(page_hdl.bitmap, rid.slot_no)) {
+        buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
+        throw RecordNotFoundError(rid.page_no, rid.slot_no);
+    }
 
-    // 2.在指定位置插入记录
+    // 在指定位置插入记录
     std::memcpy(page_hdl.get_slot(rid.slot_no), buf, file_hdr_.record_size);
 
-    // 3.更新page_handle中的数据结构
+    // 更新page_handle中的数据结构
     Bitmap::set(page_hdl.bitmap, rid.slot_no);
     int record_nums = file_hdr_.num_records_per_page;
     if (++page_hdl.page_hdr->num_records == record_nums) {
@@ -111,29 +113,32 @@ void RmFileHandle::insert_record(const Rid &rid, char *buf) {
  * @param {Context*} context
  */
 void RmFileHandle::delete_record(const Rid &rid, Context *context) {
-    // delete entry对record加X锁
-    if (context != nullptr) {
-        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
-    }
+    // 加独占锁保护数据结构
+    std::unique_lock<std::shared_mutex> lock{latch_};
 
-    // 1. 获取指定记录所在的page handle
+//    // 对record加X锁
+//    if (context != nullptr) {
+//        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+//    }
+
+    // 获取指定记录所在的page handle
     RmPageHandle page_hdl = fetch_page_handle(rid.page_no);
 
-    // 2. 更新page_handle.page_hdr的数据结构
+    // 更新page_handle.page_hdr的数据结构
     if (!Bitmap::is_set(page_hdl.bitmap, rid.slot_no)) {
+        buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
         throw RecordNotFoundError(rid.page_no, rid.slot_no);
     }
-    // 2.1 测试bitmap对应位,测试成功则重置
+    // 重置bitmap对应位
     Bitmap::reset(page_hdl.bitmap, rid.slot_no);
 
-    // 2.2 如果page从满变为未满状态,调用release_page_handle()
+    // 如果page从满变为未满状态,调用release_page_handle()
     int record_nums = file_hdr_.num_records_per_page;
     if (page_hdl.page_hdr->num_records-- == record_nums) {
         release_page_handle(page_hdl);
     }
     buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
 }
-
 
 /**
  * @description: 更新记录文件中记录号为rid的记录
@@ -142,18 +147,21 @@ void RmFileHandle::delete_record(const Rid &rid, Context *context) {
  * @param {Context*} context
  */
 void RmFileHandle::update_record(const Rid &rid, char *buf, Context *context) {
-    // update_entry对record加X锁
-    if (context != nullptr) {
-        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
-    }
+    // 加独占锁保护数据结构
+    std::unique_lock<std::shared_mutex> lock{latch_};
 
-    // 1. 获取指定记录所在的page handle
+//    // 对record加X锁
+//    if (context != nullptr) {
+//        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+//    }
+
+    // 获取指定记录所在的page handle
     RmPageHandle page_hdl = fetch_page_handle(rid.page_no);
 
     if (!Bitmap::is_set(page_hdl.bitmap, rid.slot_no)) {
         throw RecordNotFoundError(rid.page_no, rid.slot_no);
     }
-    // 2. 更新记录
+    // 更新记录
     std::memcpy(page_hdl.get_slot(rid.slot_no), buf, file_hdr_.record_size);
 
     buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);

@@ -18,11 +18,11 @@ See the Mulan PSL v2 for more details. */
 
 class DeleteExecutor : public AbstractExecutor {
 private:
-    TabMeta tab_;                   // 表的元数据
-    std::vector<Condition> conds_;  // delete的条件
-    RmFileHandle *fh_;              // 表的数据文件句柄
-    std::vector<Rid> rids_;         // 需要删除的记录的位置
-    std::string tab_name_;          // 表名称
+    TabMeta tab_;
+    std::vector<Condition> conds_;
+    RmFileHandle *fh_;
+    std::vector<Rid> rids_;
+    std::string tab_name_;
     SmManager *sm_manager_;
 
 public:
@@ -37,20 +37,18 @@ public:
         context_ = context;
 
         // 申请表级意向写锁（IX）
-        context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
+        if (context_ != nullptr) {
+            context_->lock_mgr_->lock_IX_on_table(context_->txn_, fh_->GetFd());
+        }
     }
 
     std::unique_ptr<RmRecord> Next() override {
         for (auto &rid: rids_) {
-            // 申请行级排他锁（X）
-//            context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd());
+            // 申请行级排他锁（X锁）
+            context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd());
 
             // 获取原记录
             auto record = fh_->get_record(rid, context_);
-
-            // 创建删除记录
-            RmRecord delete_rcd(record->size);
-            memcpy(delete_rcd.data, record->data, record->size);
 
             // 删除索引条目
             for (const auto &index: tab_.indexes) {
@@ -70,6 +68,10 @@ public:
                                                        index.col_tot_len);
                 context_->txn_->append_index_write_record(index_rcd);
             }
+
+            // 创建删除记录
+            RmRecord delete_rcd(record->size);
+            memcpy(delete_rcd.data, record->data, record->size);
 
             // 记录事务日志
             Transaction *txn = context_->txn_;
