@@ -22,6 +22,7 @@ std::unordered_map<txn_id_t, Transaction *> TransactionManager::txn_map = {};
 Transaction *TransactionManager::begin(Transaction *txn, LogManager *log_manager) {
     std::unique_lock<std::recursive_mutex> lock(latch_);
 
+    // 1. 判断传入事务参数是否为空指针
     if (txn == nullptr) {
         txn = new Transaction(next_txn_id_++);
         txn->set_state(TransactionState::GROWING);
@@ -31,8 +32,10 @@ Transaction *TransactionManager::begin(Transaction *txn, LogManager *log_manager
 
     BeginLogRecord begin_log(txn->get_transaction_id());
     begin_log.prev_lsn_ = txn->get_prev_lsn();
-    txn->set_prev_lsn(log_manager->flush_log_to_disk(&begin_log));
-
+    lsn_t lsn = log_manager->add_begin_log_record(txn->get_transaction_id());
+    txn->set_prev_lsn(lsn);
+    log_manager->flush_log_to_disk();
+    // 5. 返回当前事务指针
     return txn;
 }
 
@@ -46,21 +49,25 @@ void TransactionManager::commit(Transaction *txn, LogManager *log_manager) {
 
     txn->set_state(TransactionState::SHRINKING);
 
-    // 写入提交日志
+    // 4. 把事务提交日志刷入磁盘中
     CommitLogRecord commit_log(txn->get_transaction_id());
     commit_log.prev_lsn_ = txn->get_prev_lsn();
-    txn->set_prev_lsn(log_manager->flush_log_to_disk(&commit_log));
+    lsn_t lsn = log_manager->add_commit_log_record(txn->get_transaction_id());
+    txn->set_prev_lsn(lsn);
+    log_manager->flush_log_to_disk();
 
-    // 释放所有锁
+    //释放所有txn加的锁
     std::shared_ptr<std::unordered_set<LockDataId>> lock_set_ = txn->get_lock_set();
     for (auto iter: *lock_set_) {
         this->lock_manager_->unlock(txn, iter);
     }
 
+    // 3. 释放事务相关资源
     txn->get_lock_set()->clear();
     txn->get_table_write_set()->clear();
     txn->get_index_write_set()->clear();
 
+    // 5. 更新事务状态
     txn->set_state(TransactionState::COMMITTED);
 }
 
@@ -72,6 +79,7 @@ void TransactionManager::commit(Transaction *txn, LogManager *log_manager) {
 void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
     std::unique_lock<std::recursive_mutex> lock(latch_);
 
+    // 1. 回滚所有写操作
     auto table_write_set = txn->get_table_write_set();
     JoinStrategy js = JoinStrategy();
     Context context(lock_manager_, log_manager, txn, &js);
@@ -80,24 +88,29 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
         auto &rm_file_hdl = sm_manager_->fhs_.at(write_rcd->GetTableName());
         switch (write_rcd->GetWriteType()) {
             case WType::INSERT_TUPLE: {
-                rm_file_hdl->delete_record(write_rcd->GetRid(), &context);
+                rm_file_hdl->delete_record(write_rcd->GetRid(), &context, true);
+//                rm_file_hdl->delete_record(write_rcd->GetRid(), nullptr);
                 break;
             }
             case WType::DELETE_TUPLE: {
-                rm_file_hdl->insert_record(write_rcd->GetRecord().data, &context);
+                rm_file_hdl->insert_record(write_rcd->GetRecord().data, &context, true);
+//                rm_file_hdl->insert_record(write_rcd->GetRecord().data, nullptr);
                 break;
             }
             case WType::UPDATE_TUPLE: {
+                // 获取更新前的记录并恢复
                 auto before_update_record = write_rcd->GetBeforeRecord();
-                rm_file_hdl->update_record(write_rcd->GetRid(), before_update_record.data, &context);
+                rm_file_hdl->update_record(write_rcd->GetRid(), before_update_record.data, &context, true);
+//                rm_file_hdl->update_record(write_rcd->GetRid(), before_update_record.data, nullptr);
                 break;
             }
         }
         table_write_set->pop_back();
-        delete write_rcd;
+        delete write_rcd; // 避免内存泄露
     }
     table_write_set->clear();
 
+    // 2. 回滚所有索引写操作
     auto index_write_set = txn->get_index_write_set();
     while (!index_write_set->empty()) {
         auto index_write_rcd = index_write_set->back();
@@ -124,7 +137,7 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
             }
         }
         index_write_set->pop_back();
-        delete index_write_rcd;
+        delete index_write_rcd; // 避免内存泄露
     }
     index_write_set->clear();
 
@@ -138,27 +151,144 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
 
         switch (index_create_rcd->GetCreateType()) {
             case IType::INSERT_INDEX: {
-                sm_manager_->drop_index(tab_name, col_names, nullptr);
+//                sm_manager_->drop_index(tab_name, col_names, nullptr);
+                sm_manager_->drop_index(tab_name, col_names, &context);
                 break;
             }
             case IType::DROP_INDEX : {
-                sm_manager_->create_index(tab_name, col_names, nullptr);
+//                sm_manager_->create_index(tab_name, col_names, nullptr);
+                sm_manager_->create_index(tab_name, col_names, &context);
                 break;
             }
         }
         index_create_set->pop_back();
     }
 
+    // 3. 事务abort之后释放所有锁
     std::shared_ptr<std::unordered_set<LockDataId>> lock_set_ = txn->get_lock_set();
     for (auto iter: *lock_set_) {
         this->lock_manager_->unlock(txn, iter);
     }
 
     txn->get_lock_set()->clear();
+//    txn->clear_write_set();
+    lock_set_->clear();
 
+    // 4. 写入abort日志
     AbortLogRecord abort_log(txn->get_transaction_id());
     abort_log.prev_lsn_ = txn->get_prev_lsn();
-    txn->set_prev_lsn(log_manager->flush_log_to_disk(&abort_log));
+    lsn_t lsn = log_manager->add_abort_log_record(txn->get_transaction_id());
+    txn->set_prev_lsn(lsn);
+    log_manager->flush_log_to_disk();
 
+    // 5. 更新事务状态
     txn->set_state(TransactionState::ABORTED);
 }
+
+///*
+//    回滚WriteRecord.
+//*/
+//void TransactionManager::rollback_writeRecord(WriteRecord* to_rol, Transaction * txn, LogManager *log_manager){
+//    //根据类型不同调用对应的反函数
+//    RmFileHandle* fh_  = sm_manager_ -> fhs_[to_rol->GetTableName()].get(); //能否使用get保持互斥性?
+//    TabMeta& tab_meta_ = sm_manager_->db_.get_table(to_rol->GetTableName());
+//
+//    if(to_rol->GetWriteType() == WType::INSERT_TUPLE){
+//        //修改日志
+//        log_manager->add_delete_log_record(txn->get_transaction_id(), to_rol->GetRecord(), to_rol->GetRid(), to_rol->GetTableName());
+//
+//        //调用delete
+//        fh_->delete_record(to_rol->GetRid(), nullptr);
+//
+//        // set_page_lsn(to_rol->GetRid().page_no, now_lsn);
+//
+//        for(auto iter = tab_meta_.indexes.begin(); iter!= tab_meta_.indexes.end(); iter++){
+//            std::string ix_file_name = sm_manager_ -> get_ix_manager() -> get_index_name(to_rol->GetTableName(), iter->cols);
+//            IxIndexHandle* ih_ = sm_manager_->ihs_.at(ix_file_name).get();
+//#ifndef ENABLE_LOCK_CRABBING
+//            std::lock_guard<std::mutex> lg (*ih_->getMutex());
+//#endif
+//            auto& index = *iter;
+//            char* key = new char[index.col_tot_len];
+//            int offset = 0;
+//            for(size_t i = 0; i < index.col_num; ++i) {
+//                memcpy(key + offset, to_rol->GetRecord().data + index.cols[i].offset, index.cols[i].len);
+//                offset += index.cols[i].len;
+//            }
+//
+////            ih_ ->delete_entry(key, to_rol->GetRid(), txn);
+//            ih_ ->delete_entry(key, txn);
+//
+//            delete[] key;
+//        }
+//    }
+//    else if(to_rol->GetWriteType() == WType::DELETE_TUPLE){
+//        //修改日志
+//        log_manager->add_insert_log_record(txn->get_transaction_id(), to_rol->GetRecord(), to_rol->GetRid(), to_rol->GetTableName());
+//        //调用insert
+//        fh_->insert_record(to_rol->GetRid(),to_rol->GetRecord().data);
+//        // set_page_lsn(to_rol->GetRid().page_no, now_lsn);
+//        for(auto iter = tab_meta_.indexes.begin(); iter!= tab_meta_.indexes.end(); iter++){
+//            std::string ix_file_name = sm_manager_ -> get_ix_manager() -> get_index_name(to_rol->GetTableName(), iter->cols);
+//            IxIndexHandle* ih_ = sm_manager_->ihs_.at(ix_file_name).get();
+//#ifndef ENABLE_LOCK_CRABBING
+//            std::lock_guard<std::mutex> lg (*ih_->getMutex());
+//#endif
+//            auto& index = *iter;
+//            char* key = new char[index.col_tot_len];
+//            int offset = 0;
+//            for(size_t i = 0; i < index.col_num; ++i) {
+//                memcpy(key + offset, to_rol->GetRecord().data + index.cols[i].offset, index.cols[i].len);
+//                offset += index.cols[i].len;
+//            }
+//            try{
+//                ih_ ->insert_entry(key, to_rol->GetRid(),txn);
+//            }
+//            catch(IndexInsertDuplicatedError& e){
+//                delete[] key;
+//                throw e;
+//            }
+//            delete[] key;
+//        }
+//    }
+//    else if(to_rol->GetWriteType() == WType::UPDATE_TUPLE){
+//        auto old_rec = fh_->get_record(to_rol->GetRid(), nullptr);
+//        record_unpin_guard rug({fh_->GetFd(), to_rol->GetRid().page_no}, true, sm_manager_->get_bpm());
+//        log_manager->add_update_log_record(txn->get_transaction_id(), to_rol->GetRecord(), *(old_rec.get()), to_rol->GetRid(), to_rol->GetTableName());
+//        //修改日志
+//        //调用update
+//        fh_ -> update_record(to_rol->GetRid(), to_rol->GetRecord().data,nullptr);
+//        // set_page_lsn(to_rol->GetRid().page_no, now_lsn);
+//        for(auto iter = tab_meta_.indexes.begin(); iter!= tab_meta_.indexes.end(); iter++){
+//            std::string ix_file_name = sm_manager_ -> get_ix_manager() -> get_index_name(to_rol->GetTableName(), iter->cols);
+//            IxIndexHandle* ih_ = sm_manager_->ihs_.at(ix_file_name).get();
+//#ifndef ENABLE_LOCK_CRABBING
+//            std::lock_guard<std::mutex> lg (*ih_->getMutex());
+//#endif
+//            auto& index = *iter;
+//            char* key = new char[index.col_tot_len];
+//            char* old_key = new char[index.col_tot_len];
+//            int offset = 0;
+//            for(size_t i = 0; i < index.col_num; ++i) {
+//                memcpy(key + offset, to_rol->GetRecord().data + index.cols[i].offset, index.cols[i].len);
+//                memcpy(old_key + offset, old_rec->data + index.cols[i].offset, index.cols[i].len);
+//                offset += index.cols[i].len;
+//            }
+////            ih_ ->delete_entry(old_key,to_rol->GetRid(), txn);
+//            ih_ ->delete_entry(old_key, txn);
+//            try{
+//                ih_ ->insert_entry(key, to_rol->GetRid(), txn);
+//            }
+//            catch(IndexInsertDuplicatedError& e){
+//                delete[] key;
+//                delete[] old_key;
+//                throw e;
+//            }
+//            delete[] key;
+//            delete[] old_key;
+//        }
+//    }
+//    else{
+//        assert(0);
+//    }
+//}

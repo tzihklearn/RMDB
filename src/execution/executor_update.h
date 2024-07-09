@@ -86,15 +86,17 @@ public:
             fh_->update_record(rid, newRecord.data(), context_);
 
             // 写入更新日志
-            auto writeRecord = new TableWriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, beforeUpdateRecord,
-                                                    afterUpdateRecord);
-            context_->txn_->append_table_write_record(writeRecord);
+//            auto writeRecord = new TableWriteRecord(WType::UPDATE_TUPLE, tab_name_, rid, beforeUpdateRecord,
+//                                                    afterUpdateRecord);
+//            context_->txn_->append_table_write_record(writeRecord);
 
-            Transaction *txn = context_->txn_;
-            auto update_log = new UpdateLogRecord(txn->get_transaction_id(), beforeUpdateRecord, afterUpdateRecord,
-                                                  fh_->get_file_hdr().record_size, newRecord.data(), rid, tab_name_);
-            update_log->prev_lsn_ = txn->get_prev_lsn();
-            txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(update_log));
+//            Transaction *txn = context_->txn_;
+//            auto update_log = new UpdateLogRecord(txn->get_transaction_id(), beforeUpdateRecord, afterUpdateRecord,
+//                                                  fh_->get_file_hdr().record_size, newRecord.data(), rid, tab_name_);
+//            auto update_log = new UpdateLogRecord(txn->get_transaction_id(), beforeUpdateRecord, afterUpdateRecord,
+//                                                  rid, tab_name_);
+//            update_log->prev_lsn_ = txn->get_prev_lsn();
+//            txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(update_log));
 
             // 尝试插入新索引条目
             try {
@@ -115,7 +117,7 @@ public:
                     auto index_rcd = std::make_unique<IndexWriteRecord>(WType::UPDATE_TUPLE, tab_name_, rid,
                                                                         old_key.data(), new_key.data(),
                                                                         index.col_tot_len);
-                    context_->txn_->append_index_write_record(index_rcd.get());
+//                    context_->txn_->append_index_write_record(index_rcd.get());
                     index_write_records.push_back(std::move(index_rcd));
                 }
             } catch (InternalError &error) {

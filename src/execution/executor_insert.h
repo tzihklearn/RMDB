@@ -64,13 +64,15 @@ public:
         context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid_, fh_->GetFd());
 
         // 记录事务日志
-        Transaction *txn = context_->txn_;
-        auto *insert_log = new InsertLogRecord(txn->get_transaction_id(), rec, rid_, tab_name_);
-        insert_log->prev_lsn_ = txn->get_prev_lsn();
-        txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(insert_log));
-
-        auto *write_rcd = new TableWriteRecord(WType::INSERT_TUPLE, tab_name_, rid_);
-        context_->txn_->append_table_write_record(write_rcd);
+//        Transaction *txn = context_->txn_;
+//        auto *insert_log = new InsertLogRecord(txn->get_transaction_id(), rec, rid_, tab_name_);
+//        insert_log->prev_lsn_ = txn->get_prev_lsn();
+//        context_->log_mgr_->add_insert_log_record(context_->txn_->get_transaction_id(), rec, rid_, disk_manager_->get_file_name(fd_));
+//
+//        txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(insert_log));
+//
+//        auto *write_rcd = new TableWriteRecord(WType::INSERT_TUPLE, tab_name_, rid_);
+//        context_->txn_->append_table_write_record(write_rcd);
 
         // 插入索引条目
         for (auto &index: tab_.indexes) {

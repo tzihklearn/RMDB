@@ -15,6 +15,6 @@ std::unique_ptr<Planner> planner = std::make_unique<Planner>(sm_manager.get());
 std::unique_ptr<Optimizer> optimizer = std::make_unique<Optimizer>(sm_manager.get(), planner.get());
 std::unique_ptr<QlManager> ql_manager = std::make_unique<QlManager>(sm_manager.get(), txn_manager.get());
 std::unique_ptr<LogManager> log_manager = std::make_unique<LogManager>(disk_manager.get());
-std::unique_ptr<RecoveryManager> recovery = std::make_unique<RecoveryManager>(disk_manager.get(), buffer_pool_manager.get(), sm_manager.get());
+std::unique_ptr<RecoveryManager> recovery = std::make_unique<RecoveryManager>(disk_manager.get(), buffer_pool_manager.get(), sm_manager.get(), log_manager.get());
 std::unique_ptr<Portal> portal = std::make_unique<Portal>(sm_manager.get());
 std::unique_ptr<Analyze> analyze = std::make_unique<Analyze>(sm_manager.get());

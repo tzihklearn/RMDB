@@ -74,16 +74,16 @@ public:
             memcpy(delete_rcd.data, record->data, record->size);
 
             // 记录事务日志
-            Transaction *txn = context_->txn_;
-            auto *delete_log = new DeleteLogRecord(txn->get_transaction_id(), delete_rcd, rid, tab_name_);
-            delete_log->prev_lsn_ = txn->get_prev_lsn();
-            txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(delete_log));
+//            Transaction *txn = context_->txn_;
+//            auto *delete_log = new DeleteLogRecord(txn->get_transaction_id(), delete_rcd, rid, tab_name_);
+//            delete_log->prev_lsn_ = txn->get_prev_lsn();
+//            txn->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(delete_log));
 
             // 删除记录
             fh_->delete_record(rid, context_);
 
-            auto *write_record = new TableWriteRecord(WType::DELETE_TUPLE, tab_name_, rid, delete_rcd);
-            context_->txn_->append_table_write_record(write_record);
+//            auto *write_record = new TableWriteRecord(WType::DELETE_TUPLE, tab_name_, rid, delete_rcd);
+//            context_->txn_->append_table_write_record(write_record);
         }
         return nullptr;
     }

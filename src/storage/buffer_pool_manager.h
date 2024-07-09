@@ -83,3 +83,20 @@ class BufferPoolManager {
 
     void update_page(Page* page, PageId new_page_id, frame_id_t new_frame_id);
 };
+
+//RALL
+class unpin_page_guard {
+private:
+    PageId p_id;
+    bool is_dirty;
+    BufferPoolManager* buffer_pool_manager;
+public:
+    unpin_page_guard(PageId p_id_, bool is_dirty_, BufferPoolManager* buffer_pool_manager_)
+            : p_id(p_id_), is_dirty(is_dirty_), buffer_pool_manager(buffer_pool_manager_)
+    {
+
+    }
+    ~unpin_page_guard(){
+        buffer_pool_manager->unpin_page(p_id, is_dirty);// TODO: 区分true和false, 减少IO访问次数
+    }
+};

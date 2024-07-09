@@ -38,6 +38,46 @@ enum class IType {
 
 /**
  * @brief 事务的写操作记录，用于事务的回滚
+//  * INSERT(unused)
+//  * --------------------------------
+//  * | wtype | tab_name | tuple_rid |
+//  * --------------------------------
+ * DELETE / UPDATE /INSERT
+ * ----------------------------------------------
+ * | wtype | tab_name | tuple_rid | tuple_value |
+ * ----------------------------------------------
+ */
+class WriteRecord {
+public:
+    WriteRecord() = default;
+
+    // constructor for insert operation
+    WriteRecord(WType wtype, const std::string &tab_name, const Rid &rid)
+            : wtype_(wtype), tab_name_(tab_name), rid_(rid) {}
+
+    // constructor for delete & update operation
+    WriteRecord(WType wtype, const std::string &tab_name, const Rid &rid, const RmRecord &record)
+            : wtype_(wtype), tab_name_(tab_name), rid_(rid), record_(record) {}
+
+    ~WriteRecord() = default;
+
+    inline RmRecord &GetRecord() { return record_; }
+
+    inline Rid &GetRid() { return rid_; }
+
+    inline WType &GetWriteType() { return wtype_; }
+
+    inline std::string &GetTableName() { return tab_name_; }
+
+private:
+    WType wtype_;
+    std::string tab_name_;
+    Rid rid_;
+    RmRecord record_;
+};
+
+/**
+ * @brief 事务的写操作记录，用于事务的回滚
  * INSERT
  * --------------------------------
  * | wtype | tableName | tuple_rid |

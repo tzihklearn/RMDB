@@ -34,6 +34,15 @@ public:
         prev_lsn_ = INVALID_LSN;
         thread_id_ = std::this_thread::get_id();
     }
+//    explicit Transaction(txn_id_t txn_id, IsolationLevel isolation_level = IsolationLevel::SERIALIZABLE)
+//            : state_(TransactionState::DEFAULT), isolation_level_(isolation_level), txn_id_(txn_id) {
+//        write_set_ = std::make_shared<std::deque<WriteRecord *>>();
+//        lock_set_ = std::make_shared<std::unordered_set<LockDataId>>();
+//        index_latch_page_set_ = std::shared_ptr<std::deque<std::pair<Page *, int>>>();
+//        index_deleted_page_set_ = std::make_shared<std::deque<Page *>>();
+//        prev_lsn_ = INVALID_LSN;
+//        thread_id_ = std::this_thread::get_id();
+//    }
 
     ~Transaction() = default;
 
@@ -59,9 +68,18 @@ public:
 
     inline void set_prev_lsn(lsn_t prev_lsn) { prev_lsn_ = prev_lsn; }
 
+//    inline std::shared_ptr<std::deque<WriteRecord *>> get_write_set() { return write_set_; }
+//    inline void append_write_record(WriteRecord* write_record) {
+//        write_set_->emplace_back(write_record);
+//    }
+
     inline std::shared_ptr<std::deque<TableWriteRecord *>> get_table_write_set() { return table_write_set_; }
 
-    inline void append_table_write_record(TableWriteRecord *write_record) { table_write_set_->push_back(write_record); }
+    inline void append_table_write_record(TableWriteRecord *write_record) {
+//        std::cout << "append table write record: " << table_write_set_->size() << std::endl;
+        table_write_set_->push_back(write_record);
+//        std::cout << "append table write record after : " << table_write_set_->size() << std::endl;
+    }
 
     inline std::shared_ptr<std::deque<IndexWriteRecord *>> get_index_write_set() { return index_write_set_; }
 
@@ -86,6 +104,14 @@ public:
 
     inline std::shared_ptr<std::unordered_set<LockDataId>> get_lock_set() { return lock_set_; }
 
+//    void clear_write_set(){
+//        for(auto iter = write_set_->begin(); iter!= write_set_->end(); iter++){
+//            delete *iter;
+//        }
+//        this->write_set_->clear();
+//    }
+
+
 private:
     bool txn_mode_;                   // 用于标识当前事务为显式事务还是单条SQL语句的隐式事务
     TransactionState state_;          // 事务状态
@@ -98,6 +124,7 @@ private:
     std::shared_ptr<std::deque<TableWriteRecord *>> table_write_set_;  // 事务包含的table所有写操作
     std::shared_ptr<std::deque<IndexWriteRecord *>> index_write_set_;  // 事务包含的index所有写操作
     std::shared_ptr<std::deque<IndexCreateRecord *>> index_create_set_;  // 事务包含的index创建所有写操作
+//    std::shared_ptr<std::deque<WriteRecord *>> write_set_;  // 事务包含的所有写操作
     std::shared_ptr<std::unordered_set<LockDataId>> lock_set_;  // 事务申请的所有锁
     std::shared_ptr<std::deque<std::pair<Page *, int>>> index_latch_page_set_;          // 维护事务执行过程中加锁的索引页面
     std::shared_ptr<std::deque<Page *>> index_deleted_page_set_;    // 维护事务执行过程中删除的索引页面

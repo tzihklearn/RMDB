@@ -287,6 +287,14 @@ public:
 
     Iid leaf_begin() const;
 
+    IxFileHdr getFileHdr(){
+        return *this->file_hdr_;
+    }
+
+    std::mutex *getMutex() {
+        return &this->root_latch_;
+    }
+
 private:
     // 辅助函数
     void update_root_page_no(page_id_t root) { file_hdr_->root_page_ = root; }
