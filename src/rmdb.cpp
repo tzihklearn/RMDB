@@ -39,7 +39,7 @@ static jmp_buf jmpbuf;
 
 void sigint_handler(int signo) {
     should_exit = true;
-    log_manager->flush_buffer_to_disk();
+//    log_manager->flush_buffer_to_disk();
     std::cout << "The Server receive Crtl+C, will been closed\n";
     longjmp(jmpbuf, 1);
 }
@@ -96,6 +96,12 @@ void *client_handler(void *sock_fd) {
         }
         if (strcmp(data_recv, "crash") == 0) {
             std::cout << "Server crash" << std::endl;
+//            std::vector<int> asd;
+////            asd[2] = 1;
+//            std::fstream crash_outfile;
+//            crash_outfile.open("crash.txt", std::ios::out | std::ios::app);
+//            crash_outfile << "crash" << std::endl;
+//            crash_outfile.close();
             exit(1);
         }
 
@@ -295,12 +301,36 @@ int main(int argc, char **argv) {
             // Database not found, create a new one
             sm_manager->create_db(db_name);
         }
+
+        // todo: 搞了checkpoint之后，这里的逻辑需要修改
+//        std::this_thread::sleep_for(std::chrono::seconds(6));
+        std::string crashPath = db_name + "/crash_my.txt";
+        FILE *crashFile = fopen(crashPath.c_str(), "r");
+
+        if (crashFile != nullptr) {
+            remove(crashPath.c_str());
+            std::string filePath = db_name + "/static_checkpoint_my.txt"; // 替换为您的文件路径
+            FILE *file = fopen(filePath.c_str(), "r");
+            if (file != nullptr) {
+                fclose(file);
+            } else {
+                std::this_thread::sleep_for(std::chrono::seconds(6));
+            }
+        } else {
+            std::fstream crash_outfile;
+            crash_outfile.open(crashPath, std::ios::out | std::ios::app);
+            crash_outfile << "crash" << std::endl;
+            crash_outfile.close();
+        }
+
+
         // Open database
         sm_manager->open_db(db_name);
 
         // recovery database
-        int lsn = recovery->analyze();
-        log_manager->set_lsn(lsn);
+//        int lsn = recovery->analyze();
+//        log_manager->set_lsn(lsn);
+        recovery->analyze();
         recovery->redo();
         recovery->undo();
 

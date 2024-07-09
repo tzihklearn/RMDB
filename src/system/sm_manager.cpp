@@ -311,13 +311,19 @@ void SmManager::create_index(const std::string &tab_name, const std::vector<std:
             memcpy(key + offset, rec->data + index.cols[i].offset, index.cols[i].len);
             offset += index.cols[i].len;
         }
-        ix_hdl->insert_entry(key, rm_scan.rid(), context->txn_);
+//        ix_hdl->insert_entry(key, rm_scan.rid(), context->txn_);
+        if (context != nullptr) {
+            ix_hdl->insert_entry(key, rm_scan.rid(), context->txn_);
+        } else {
+            ix_hdl->insert_entry(key, rm_scan.rid(), nullptr);
+        }
+
     }
 
-    if (nullptr != context) {
-        auto index_record = new IndexCreateRecord(IType::INSERT_INDEX, index_name, tab_name, col_names);
-        context->txn_->append_index_create_record(index_record);
-    }
+//    if (nullptr != context) {
+//        auto index_record = new IndexCreateRecord(IType::INSERT_INDEX, index_name, tab_name, col_names);
+//        context->txn_->append_index_create_record(index_record);
+//    }
     tab.indexes.push_back(index);
 
     flush_meta();
@@ -355,10 +361,10 @@ void SmManager::drop_index(const std::string &tab_name, const std::vector<std::s
     db_.get_table(tab_name).indexes.erase(ix_meta);
     ihs_.erase(index_name);
 
-    if (nullptr != context) {
-        auto index_record = new IndexCreateRecord(IType::DROP_INDEX, index_name, tab_name, col_names);
-        context->txn_->append_index_create_record(index_record);
-    }
+//    if (nullptr != context) {
+//        auto index_record = new IndexCreateRecord(IType::DROP_INDEX, index_name, tab_name, col_names);
+//        context->txn_->append_index_create_record(index_record);
+//    }
 }
 
 /**

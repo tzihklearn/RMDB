@@ -46,6 +46,8 @@ public:
 
     LockManager *get_lock_manager() { return lock_manager_; }
 
+    void rollback_writeRecord(WriteRecord* to_rol, Transaction * txn, LogManager *log_manager);
+
     /**
      * @description: 获取事务ID为txn_id的事务对象
      * @return {Transaction*} 事务对象的指针

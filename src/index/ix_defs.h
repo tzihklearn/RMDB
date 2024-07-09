@@ -37,6 +37,7 @@ public:
     page_id_t first_leaf_;              // 首叶节点对应的页号，在上层IxManager的open函数进行初始化，初始化为root page_no
     page_id_t last_leaf_;               // 尾叶节点对应的页号
     int tot_len_;                       // 记录结构体的整体长度
+    int32_t file_lsn_;
 
     IxFileHdr() {
         tot_len_ = col_num_ = 0;
@@ -47,6 +48,7 @@ public:
                 : first_free_page_no_(first_free_page_no), num_pages_(num_pages), root_page_(root_page), col_num_(col_num),
                 col_tot_len_(col_tot_len), btree_order_(btree_order), keys_size_(keys_size), first_leaf_(first_leaf), last_leaf_(last_leaf) {
                     tot_len_ = 0;
+                    file_lsn_ = -1;
                 } 
 
     void update_tot_len() {
@@ -85,6 +87,8 @@ public:
         offset += sizeof(page_id_t);
         memcpy(dest + offset, &last_leaf_, sizeof(page_id_t));
         offset += sizeof(page_id_t);
+//        memcpy(dest + offset, &file_lsn_, sizeof(int32_t));
+//        offset += sizeof(int32_t);
         assert(offset == tot_len_);
     }
 
@@ -123,6 +127,8 @@ public:
         offset += sizeof(page_id_t);
         last_leaf_ = *reinterpret_cast<const page_id_t*>(src + offset);
         offset += sizeof(page_id_t);
+//        file_lsn_ = *reinterpret_cast<const int32_t*>(src+offset);
+//        offset += sizeof(int32_t);
         assert(offset == tot_len_);
     }
 };

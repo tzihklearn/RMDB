@@ -53,7 +53,9 @@ typedef enum PlanTag {
     // 其他
     T_SetKnob,
     // 聚合函数
-    T_SvAggregate
+    T_SvAggregate,
+    // 静态检查点
+    T_Static_Checkpoint
 } PlanTag;
 
 // 查询执行计划

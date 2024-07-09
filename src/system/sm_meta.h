@@ -16,7 +16,6 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 #include <vector>
 
-#include "errors.h"
 #include "sm_defs.h"
 
 /* 字段元数据 */
@@ -254,6 +253,10 @@ public:
         }
 
         return pos->second;
+    }
+
+    std::map<std::string, TabMeta> &get_tables() {
+        return tabs_;
     }
 
     // 重载操作符 <<

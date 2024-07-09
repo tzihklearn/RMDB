@@ -177,3 +177,8 @@ class InvalidTypeError : public RMDBError {
     InvalidTypeError()
         : RMDBError("Invalid Type Error: Cannot convert to record") {}
 };
+
+class IndexInsertDuplicatedError : public RMDBError {
+public:
+    IndexInsertDuplicatedError() : RMDBError("Index already exists") {}
+};

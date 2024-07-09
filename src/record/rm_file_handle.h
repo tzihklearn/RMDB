@@ -76,19 +76,21 @@ public:
         return Bitmap::is_set(page_handle.bitmap, rid.slot_no);  // page的slot_no位置上是否有record
     }
 
-    std::unique_ptr<RmRecord> get_record(const Rid &rid, Context *context) const;
+    std::unique_ptr<RmRecord> get_record(const Rid &rid, Context *context, bool was_get_lock = false) const;
 
-    Rid insert_record(char *buf, Context *context);
+    Rid insert_record(char *buf, Context *context, bool is_abort = false);
 
     void insert_record(const Rid &rid, char *buf);
 
-    void delete_record(const Rid &rid, Context *context);
+    void delete_record(Rid &rid, Context *context, bool is_abort = false);
 
-    void update_record(const Rid &rid, char *buf, Context *context);
+    void update_record(Rid &rid, char *buf, Context *context, bool is_abort = false);
 
     RmPageHandle create_new_page_handle();
 
     RmPageHandle fetch_page_handle(int page_no) const;
+
+    void allocpage(Rid& rid);
 
 private:
     RmPageHandle create_page_handle();

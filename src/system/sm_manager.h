@@ -25,6 +25,21 @@ struct ColDef {
     int len;                // 字段长度
 };
 
+class record_unpin_guard {
+public:
+    PageId p_id;
+    bool is_dirty;
+    BufferPoolManager* buffer_pool_manager;
+    record_unpin_guard(PageId p_id_, bool is_dirty_, BufferPoolManager* buffer_pool_manager_)
+            : p_id(p_id_), is_dirty(is_dirty_), buffer_pool_manager(buffer_pool_manager_)
+    {
+
+    }
+    ~record_unpin_guard(){
+        buffer_pool_manager->unpin_page(p_id, is_dirty);
+    }
+};
+
 /* 系统管理器，负责元数据管理和DDL语句的执行 */
 class SmManager {
 public:
