@@ -49,7 +49,7 @@ public:
             // 申请行级排他锁（X锁）
             context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd());
 
-            auto rec = fh_->get_record(rid, context_);
+            auto rec = fh_->get_record(rid, context_, false);
 
             // 删除旧索引
             std::vector<std::unique_ptr<IndexWriteRecord>> index_write_records;

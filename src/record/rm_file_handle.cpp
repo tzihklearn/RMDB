@@ -1,14 +1,5 @@
-/* Copyright (c) 2023 Renmin University of China
-RMDB is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
-        http://license.coscl.org.cn/MulanPSL2
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-See the Mulan PSL v2 for more details. */
-
 #include "rm_file_handle.h"
+#include <shared_mutex>
 
 /**
  * @description: 获取当前表中记录号为rid的记录
@@ -60,7 +51,7 @@ Rid RmFileHandle::insert_record(char *buf, Context *context, bool is_abort) {
     // 在page_hdl中找到空闲slot位置
     int record_size = file_hdr_.record_size;
     int record_nums = file_hdr_.num_records_per_page;
-    int slot_no = Bitmap::first_bit(false, page_hdl.bitmap, record_nums);
+    int slot_no = Bitmap::first_bit(false, page_hdl.bitmap, record_nums, *page_hdl.deleted);
     if (slot_no == record_nums) {
         buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
         throw InvalidSlotNoError(slot_no, record_nums);
@@ -108,6 +99,11 @@ Rid RmFileHandle::insert_record(char *buf, Context *context, bool is_abort) {
 ////        context->txn_->append_write_record(wr_rec);
 
 
+    } else if (context != nullptr) {
+        RmRecord rec(file_hdr_.record_size, buf);
+        auto table_name = disk_manager_->get_file_name(fd_);
+        context->log_mgr_->add_insert_log_record(context->txn_->get_transaction_id(), rec, rid, table_name);
+        context->log_mgr_->flush_log_to_disk();
     }
     buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
 
@@ -122,6 +118,71 @@ Rid RmFileHandle::insert_record(char *buf, Context *context, bool is_abort) {
  * @param {Rid&} rid 要插入记录的位置
  * @param {char*} buf 要插入记录的数据
  */
+void RmFileHandle::insert_record(Rid &rid, char *buf, Context *context, bool is_abort) {
+    // 加独占锁保护数据结构
+    std::unique_lock<std::shared_mutex> lock{latch_};
+
+    // 判断指定位置是否空闲，若不空闲则返回异常
+    RmPageHandle page_hdl = fetch_page_handle(rid.page_no);
+    if (Bitmap::is_set(page_hdl.bitmap, rid.slot_no)) {
+//        auto recore = get_record(rid, nullptr, true);
+        buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
+        throw RecordNotFoundError(rid.page_no, rid.slot_no);
+    }
+//    if (!Bitmap::is_set(page_hdl.bitmap, rid.slot_no)) {
+//        buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
+//        throw RecordNotFoundError(rid.page_no, rid.slot_no);
+//    }
+
+    // 在指定位置插入记录
+    std::memcpy(page_hdl.get_slot(rid.slot_no), buf, file_hdr_.record_size);
+
+    // 更新page_handle中的数据结构
+    Bitmap::set(page_hdl.bitmap, rid.slot_no);
+    int record_nums = file_hdr_.num_records_per_page;
+    if (++page_hdl.page_hdr->num_records == record_nums) {
+        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+    }
+
+    if(context != nullptr && !is_abort) {
+        RmRecord rec(file_hdr_.record_size, buf);
+        auto table_name = disk_manager_->get_file_name(fd_);
+
+        // 记录事务日志
+        Transaction *txn = context->txn_;
+        auto *insert_log = new InsertLogRecord(txn->get_transaction_id(), rec, rid, table_name);
+        insert_log->prev_lsn_ = txn->get_prev_lsn();
+
+        //日志管理
+        lsn_t lsn = context->log_mgr_->add_insert_log_record(context->txn_->get_transaction_id(), rec, rid, table_name);
+        txn->set_prev_lsn(lsn);
+        context->log_mgr_->flush_log_to_disk();
+
+        auto *write_rcd = new TableWriteRecord(WType::INSERT_TUPLE, table_name, rid);
+        context->txn_->append_table_write_record(write_rcd);
+
+
+        //事务管理
+//        RmRecord ins_rec(file_hdr_.record_size, buf);
+//        WriteRecord *wr_rec = new WriteRecord(WType::INSERT_TUPLE, disk_manager_->get_file_name(fd_), rid, ins_rec);
+////        context->txn_->append_write_record(wr_rec);
+
+
+    } else if (context != nullptr) {
+        RmRecord rec(file_hdr_.record_size, buf);
+        auto table_name = disk_manager_->get_file_name(fd_);
+        context->log_mgr_->add_insert_log_record(context->txn_->get_transaction_id(), rec, rid, table_name);
+        context->log_mgr_->flush_log_to_disk();
+    }
+
+    buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
+}
+
+/**
+ * @description: 在当前表中的指定位置插入一条记录
+ * @param {Rid&} rid 要插入记录的位置
+ * @param {char*} buf 要插入记录的数据
+ */
 void RmFileHandle::insert_record(const Rid &rid, char *buf) {
     // 加独占锁保护数据结构
     std::unique_lock<std::shared_mutex> lock{latch_};
@@ -129,6 +190,7 @@ void RmFileHandle::insert_record(const Rid &rid, char *buf) {
     // 判断指定位置是否空闲，若不空闲则返回异常
     RmPageHandle page_hdl = fetch_page_handle(rid.page_no);
     if (Bitmap::is_set(page_hdl.bitmap, rid.slot_no)) {
+//        auto recore = get_record(rid, nullptr, true);
         buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
         throw RecordNotFoundError(rid.page_no, rid.slot_no);
     }
@@ -195,16 +257,24 @@ void RmFileHandle::delete_record(Rid &rid, Context *context, bool is_abort) {
 //        context->txn_->append_write_record(wr_rec);
 
 
+    } else if (context != nullptr) {
+        auto rec = get_record(rid, context, true);
+        context->log_mgr_->add_delete_log_record(context->txn_->get_transaction_id(), *rec, rid, disk_manager_->get_file_name(fd_));
+        context->log_mgr_->flush_log_to_disk();
     }
 
     // 2.1 测试bitmap对应位,测试成功则重置
     Bitmap::reset(page_hdl.bitmap, rid.slot_no);
+    (*page_hdl.deleted)++;
 
     // 如果page从满变为未满状态,调用release_page_handle()
     int record_nums = file_hdr_.num_records_per_page;
-    if (page_hdl.page_hdr->num_records-- == record_nums) {
-        release_page_handle(page_hdl);
-    }
+//    if (page_hdl.page_hdr->num_records-- == record_nums) {
+//        release_page_handle(page_hdl);
+//    }
+//    if (page_hdl.page_hdr->num_records == record_nums) {
+//        release_page_handle(page_hdl);
+//    }
     buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
 }
 
@@ -275,6 +345,19 @@ void RmFileHandle::update_record(Rid &rid, char *buf, Context *context, bool is_
         update_page_handle.page->set_page_lsn(new_lsn);
 #endif
         buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
+    } else if (context != nullptr) {
+        auto rec = get_record(rid, context, true);
+        std::vector<char> newRecord(file_hdr_.record_size);
+        memcpy(newRecord.data(), buf, file_hdr_.record_size);
+        auto table_name = disk_manager_->get_file_name(fd_);
+
+        // 记录更新前后的数据，用于日志记录
+        RmRecord beforeUpdateRecord(rec->size);
+        memcpy(beforeUpdateRecord.data, rec->data, rec->size);
+        RmRecord afterUpdateRecord(newRecord.size());
+        memcpy(afterUpdateRecord.data, newRecord.data(), newRecord.size());
+        context->log_mgr_->add_update_log_record(context->txn_->get_transaction_id(), afterUpdateRecord, beforeUpdateRecord, rid, disk_manager_->get_file_name(fd_));
+        context->log_mgr_->flush_log_to_disk();
     }
 
     // 2. 更新记录

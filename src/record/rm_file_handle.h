@@ -26,12 +26,14 @@ struct RmPageHandle {
     RmPageHdr *page_hdr;        // page->data的第一部分，存储页面元信息，指针指向首地址，长度为sizeof(RmPageHdr)
     char *bitmap;               // page->data的第二部分，存储页面的bitmap，指针指向首地址，长度为file_hdr->bitmap_size
     char *slots;                // page->data的第三部分，存储表的记录，指针指向首地址，每个slot的长度为file_hdr->record_size
+    int *deleted = 0;            // 当前页面中已经删除的记录个数
 
     RmPageHandle(const RmFileHdr *fhdr_, Page *page_)
             : file_hdr(fhdr_), page(page_) {
         page_hdr = reinterpret_cast<RmPageHdr *>(page->get_data() + page->OFFSET_PAGE_HDR);
         bitmap = page->get_data() + sizeof(RmPageHdr) + page->OFFSET_PAGE_HDR;
         slots = bitmap + file_hdr->bitmap_size;
+        deleted = reinterpret_cast<int *>(slots + file_hdr->record_size * file_hdr->num_records_per_page); // Assuming this part of the page is reserved for storing the deleted count
     }
 
     // 返回指定slot_no的slot存储地址
@@ -79,7 +81,7 @@ public:
     std::unique_ptr<RmRecord> get_record(const Rid &rid, Context *context, bool was_get_lock = false) const;
 
     Rid insert_record(char *buf, Context *context, bool is_abort = false);
-
+    void insert_record(Rid &rid, char *buf, Context *context, bool is_abort = false);
     void insert_record(const Rid &rid, char *buf);
 
     void delete_record(Rid &rid, Context *context, bool is_abort = false);
