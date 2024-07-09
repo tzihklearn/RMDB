@@ -48,7 +48,7 @@ public:
             context_->lock_mgr_->lock_exclusive_on_record(context_->txn_, rid, fh_->GetFd());
 
             // 获取原记录
-            auto record = fh_->get_record(rid, context_);
+            auto record = fh_->get_record(rid, context_, false);
 
             // 删除索引条目
             for (const auto &index: tab_.indexes) {

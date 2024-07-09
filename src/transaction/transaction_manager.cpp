@@ -93,7 +93,8 @@ void TransactionManager::abort(Transaction *txn, LogManager *log_manager) {
                 break;
             }
             case WType::DELETE_TUPLE: {
-                rm_file_hdl->insert_record(write_rcd->GetRecord().data, &context, true);
+                rm_file_hdl->insert_record(write_rcd->GetRid(), write_rcd->GetRecord().data, &context, true);
+//                rm_file_hdl->insert_record(write_rcd->GetRecord().data, &context, true);
 //                rm_file_hdl->insert_record(write_rcd->GetRecord().data, nullptr);
                 break;
             }
