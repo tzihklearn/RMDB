@@ -43,6 +43,9 @@ class Query{
     // join_col
     std::map<std::string, TabCol> join_col;
 
+    // 文件地址
+    std::string file_url;
+
     Query()= default;
 
 };

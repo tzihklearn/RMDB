@@ -26,13 +26,15 @@ See the Mulan PSL v2 for more details. */
 #include "common/common.h"
 #include "execution/execution_aggregation.h"
 #include "execution/execution_merge_sort.h"
+#include "execution/execution_load.h"
 
 typedef enum portalTag {
     PORTAL_Invalid_Query = 0,
     PORTAL_ONE_SELECT,
     PORTAL_DML_WITHOUT_SELECT,
     PORTAL_MULTI_QUERY,
-    PORTAL_CMD_UTILITY
+    PORTAL_CMD_UTILITY,
+    PORTAL_LOAD
 } portalTag;
 
 

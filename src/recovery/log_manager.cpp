@@ -93,7 +93,7 @@ lsn_t LogManager::get_new_lsn() {
  * @description: 添加一条insert_log_record
  */
 lsn_t LogManager::add_insert_log_record(txn_id_t txn_id, RmRecord &insert_value,
-                                       Rid &rid, const std::string &table_name) {
+                                        Rid &rid, const std::string &table_name) {
 
     std::lock_guard<std::mutex> lg(this->latch_);
     InsertLogRecord *insert_log = new InsertLogRecord(txn_id, insert_value, rid, table_name);
@@ -104,7 +104,7 @@ lsn_t LogManager::add_insert_log_record(txn_id_t txn_id, RmRecord &insert_value,
 }
 
 lsn_t LogManager::add_delete_log_record(txn_id_t txn_id, RmRecord &delete_value,
-                                       Rid &rid, const std::string &table_name) {
+                                        Rid &rid, const std::string &table_name) {
     std::lock_guard<std::mutex> lg(this->latch_);
     DeleteLogRecord *delete_log = new DeleteLogRecord(txn_id, delete_value, rid, table_name);
     delete_log->lsn_ = get_new_lsn();
@@ -114,7 +114,7 @@ lsn_t LogManager::add_delete_log_record(txn_id_t txn_id, RmRecord &delete_value,
 }
 
 lsn_t LogManager::add_update_log_record(txn_id_t txn_id, RmRecord &update_value, RmRecord &old_value,
-                                       Rid &rid, const std::string &table_name) {
+                                        Rid &rid, const std::string &table_name) {
     std::lock_guard<std::mutex> lg(this->latch_);
 
     UpdateLogRecord *update_log = new UpdateLogRecord(txn_id, update_value, old_value, rid, table_name);

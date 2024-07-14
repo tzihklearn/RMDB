@@ -229,8 +229,20 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
                 query->values.push_back(value);
             }
         }
-    }
+    } else if (auto x = std::dynamic_pointer_cast<ast::LoadStmt>(parse)) {
+        std::string fileName = x->file_name;
+        std::string tableName = x->tab_name;
 
+        // 你可能需要在 Query 类中增加一些字段来存储 load 指令的信息
+        query->file_url = fileName;
+        query->tables.push_back(tableName);
+
+        // 检查表是否存在
+        bool isTable = sm_manager_->db_.is_table(tableName);
+        if (!isTable) {
+            throw TableNotFoundError(tableName);
+        }
+    }
     query->parse = std::move(parse);
     return query;
 }

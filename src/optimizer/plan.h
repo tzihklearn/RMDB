@@ -237,3 +237,17 @@ public:
     plannerInfo(std::shared_ptr<ast::SelectStmt> parse_) : parse(std::move(parse_)) {}
 
 };
+
+class LoadPlan : public Plan {
+private:
+    std::string file_name;
+    std::string tab_name;
+
+public:
+    LoadPlan(const std::string &file_name_, const std::string &tab_name_)
+            : file_name(file_name_), tab_name(tab_name_) {}
+
+    std::string getFileName() { return file_name; }
+
+    std::string getTableName() { return tab_name; }
+};

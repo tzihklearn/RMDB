@@ -22,8 +22,8 @@ using namespace ast;
 
 // keywords
 %token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY AS GROUP
-WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
-GROUP_BY HAVING IN STATIC_CHECKPOINT
+WHERE UPDATE SET SELECT INT CHAR FLOAT DATETIME INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
+GROUP_BY HAVING IN STATIC_CHECKPOINT LOAD
 
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
@@ -35,6 +35,9 @@ GROUP_BY HAVING IN STATIC_CHECKPOINT
 %token <sv_int> VALUE_INT
 %token <sv_float> VALUE_FLOAT
 %token <sv_bool> VALUE_BOOL
+
+%token FILE_PATH
+%type <sv_str> FILE_PATH
 
 // specify types for non-terminal symbol
 %type <sv_node> stmt dbStmt ddl dml txnStmt setStmt
@@ -160,6 +163,11 @@ ddl:
     {
     	$$ = std::make_shared<StaticCheckpoint>();
     }
+    |   LOAD FILE_PATH INTO tbName
+    {
+         $$ = std::make_shared<LoadStmt>($2, $4);
+         std::cout << "Parsed file path: " << $2 << std::endl;
+    }
     ;
 
 dml:
@@ -222,6 +230,10 @@ type:
     |   FLOAT
     {
         $$ = std::make_shared<TypeLen>(SV_TYPE_FLOAT, sizeof(float));
+    }
+    |   DATETIME
+    {
+        $$ = std::make_shared<TypeLen>(SV_TYPE_STRING, 30);
     }
     ;
 
