@@ -483,8 +483,6 @@ public:
 
     lsn_t get_persist_lsn_() { return persist_lsn_; }
 
-    template <typename T>
-    lsn_t add_log_record(T* log_record);
     lsn_t add_insert_log_record(txn_id_t txn_id, RmRecord& insert_value, Rid& rid, const std::string& table_name);
     lsn_t add_delete_log_record(txn_id_t txn_id, RmRecord& delete_value, Rid& rid, const std::string& table_name);
     lsn_t add_update_log_record(txn_id_t txn_id, RmRecord& update_value, RmRecord& old_value, Rid& rid, const std::string& table_name);
@@ -494,9 +492,6 @@ public:
 
     lsn_t add_abort_log_record(txn_id_t txn_id);
     static void static_checkpoint();
-
-    static void static_checkpoint();
-
     void set_global_lsn_(lsn_t lsn_) {
         this->global_lsn_ = lsn_;
     }
@@ -517,8 +512,8 @@ private:
     lsn_t persist_lsn_{};                 // 记录已经持久化到磁盘中的最后一条日志的日志号
     DiskManager *disk_manager_;
 
-    template<typename T>
-    lsn_t add_log_record(T *log_record);
+    template <typename T>
+    lsn_t add_log_record(T* log_record);
 
     template<typename T>
     lsn_t add_log_to_buffer(T *log_record);
