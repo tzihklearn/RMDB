@@ -22,8 +22,8 @@ enum LogType : int {
     UPDATE = 0,
     INSERT,
     DELETE,
-    begin,
-    commit,
+    BEGIN,
+    COMMIT,
     ABORT,
     IX_INSERT,
     IX_DELETE
@@ -46,7 +46,7 @@ public:
     lsn_t prev_lsn_{};           /* 事务创建的前一条日志记录的lsn，用于undo */
 
     // 把日志记录序列化到dest中
-    virtual void serialize(char *dest) const {
+    virtual void serialize(char* dest) const {
         memcpy(dest + OFFSET_LOG_TYPE, &log_type_, sizeof(LogType));
         memcpy(dest + OFFSET_LSN, &lsn_, sizeof(lsn_t));
         memcpy(dest + OFFSET_LOG_TOT_LEN, &log_tot_len_, sizeof(uint32_t));
@@ -84,7 +84,7 @@ public:
 class BeginLogRecord : public LogRecord {
 public:
     BeginLogRecord() {
-        log_type_ = LogType::begin;
+        log_type_ = LogType::BEGIN;
         lsn_ = INVALID_LSN;
         log_tot_len_ = LOG_HEADER_SIZE;
         log_tid_ = INVALID_TXN_ID;
@@ -117,7 +117,7 @@ public:
 class CommitLogRecord : public LogRecord {
 public:
     CommitLogRecord() {
-        log_type_ = LogType::commit;
+        log_type_ = LogType::COMMIT;
         lsn_ = INVALID_LSN;
         log_tot_len_ = LOG_HEADER_SIZE;
         log_tid_ = INVALID_TXN_ID;
@@ -458,14 +458,14 @@ public:
         offset_ = 0;
     }
 
-    [[nodiscard]] bool is_full(int append_size) const {
-        if (offset_ + append_size > LOG_BUFFER_SIZE)
+    bool is_full(unsigned int append_size) const {
+        if(offset_ + append_size > LOG_BUFFER_SIZE)
             return true;
         return false;
     }
 
-    char buffer_[LOG_BUFFER_SIZE + 1]{};
-    int offset_;    // 写入log的offset
+    char buffer_[LOG_BUFFER_SIZE+1];
+    unsigned int offset_;    // 写入log的offset
 };
 
 /* 日志管理器，负责把日志写入日志缓冲区，以及把日志缓冲区中的内容写入磁盘中 */
@@ -483,18 +483,17 @@ public:
 
     lsn_t get_persist_lsn_() { return persist_lsn_; }
 
-    lsn_t add_insert_log_record(txn_id_t txn_id, RmRecord &insert_value, Rid &rid, const std::string &table_name);
-
-    lsn_t add_delete_log_record(txn_id_t txn_id, RmRecord &delete_value, Rid &rid, const std::string &table_name);
-
-    lsn_t add_update_log_record(txn_id_t txn_id, RmRecord &update_value, RmRecord &old_value, Rid &rid,
-                                const std::string &table_name);
-
+    template <typename T>
+    lsn_t add_log_record(T* log_record);
+    lsn_t add_insert_log_record(txn_id_t txn_id, RmRecord& insert_value, Rid& rid, const std::string& table_name);
+    lsn_t add_delete_log_record(txn_id_t txn_id, RmRecord& delete_value, Rid& rid, const std::string& table_name);
+    lsn_t add_update_log_record(txn_id_t txn_id, RmRecord& update_value, RmRecord& old_value, Rid& rid, const std::string& table_name);
     lsn_t add_begin_log_record(txn_id_t txn_id);
 
     lsn_t add_commit_log_record(txn_id_t txn_id);
 
     lsn_t add_abort_log_record(txn_id_t txn_id);
+    static void static_checkpoint();
 
     static void static_checkpoint();
 
