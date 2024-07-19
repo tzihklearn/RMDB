@@ -61,7 +61,7 @@ void RecoveryManager::undo() {
 }
 
 //判断落盘
-bool RecoveryManager::is_record_stored(const std::string &file_name, int page_no, lsn_t now_lsn) {
+bool RecoveryManager::is_record_stroed(const std::string& file_name, const int& page_no, lsn_t now_lsn) {
     RmFileHandle *file_handle = this->sm_manager_->fhs_.at(file_name).get();
     if (page_no >= file_handle->get_file_hdr().num_pages) return false;
     RmPageHandle page_handle = file_handle->fetch_page_handle(page_no);
