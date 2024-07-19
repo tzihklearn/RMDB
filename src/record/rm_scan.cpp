@@ -34,9 +34,10 @@ void RmScan::next() {
     for (; rid_.page_no < file_handle_->file_hdr_.num_pages; rid_.page_no++) {
         // 用位图找到下一个为1的位
         int num_record = file_handle_->file_hdr_.num_records_per_page;
+        auto pageHandle = file_handle_->fetch_page_handle(rid_.page_no);
         rid_.slot_no = Bitmap::next_bit(
-                true, file_handle_->fetch_page_handle(rid_.page_no).bitmap, num_record,
-                rid_.slot_no);
+                true, pageHandle.bitmap, num_record,
+                rid_.slot_no, *pageHandle.deleted);
         if (rid_.slot_no < num_record) {
             return;
         }
