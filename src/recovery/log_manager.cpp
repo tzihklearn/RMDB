@@ -40,9 +40,8 @@ void LogManager::flush_log_to_disk(FlushReason flush_reason) {
     if (flush_reason != FlushReason::BUFFER_FULL) {
         this->latch_.lock();
     }
-
-    // 写回到磁盘
-    disk_manager_->write_log(this->get_log_buffer()->buffer_, this->get_log_buffer()->offset_);
+    //写回到磁盘
+    disk_manager_->write_log(this->get_log_buffer()->buffer_, (int) this->get_log_buffer()->offset_);
 
     // 维护元数据
     this->persist_lsn_ = this->global_lsn_ - 1;
@@ -113,7 +112,6 @@ lsn_t LogManager::add_commit_log_record(txn_id_t txn_id) {
 lsn_t LogManager::add_abort_log_record(txn_id_t txn_id) {
     return add_log_record(new AbortLogRecord(txn_id));
 }
-
 // 静态检查点
 void LogManager::static_checkpoint() {
     std::fstream static_checkpoint_outfile;
