@@ -40,7 +40,7 @@ value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
 value_string '[^']*'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
-FILE_PATH ([a-zA-Z0-9_\-\.\/]+)
+file_path_value ([a-zA-Z0-9_\-\.\/]+)
 
 %x STATE_COMMENT
 
@@ -130,6 +130,11 @@ FILE_PATH ([a-zA-Z0-9_\-\.\/]+)
 {value_string} {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
     return VALUE_STRING;
+}
+
+{file_path_value}  {
+    yylval->sv_str = yytext;
+    return FILE_PATH_VALUE;
 }
     /* EOF */
 <<EOF>> { return T_EOF; }

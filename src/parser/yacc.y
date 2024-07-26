@@ -36,8 +36,9 @@ GROUP_BY HAVING IN STATIC_CHECKPOINT LOAD
 %token <sv_float> VALUE_FLOAT
 %token <sv_bool> VALUE_BOOL
 
-%token FILE_PATH
-%type <sv_str> FILE_PATH
+%token <sv_str> FILE_PATH_VALUE
+//%token FILE_PATH
+%type <sv_str> file_path
 
 // specify types for non-terminal symbol
 %type <sv_node> stmt dbStmt ddl dml txnStmt setStmt
@@ -163,7 +164,7 @@ ddl:
     {
     	$$ = std::make_shared<StaticCheckpoint>();
     }
-    |   LOAD FILE_PATH INTO tbName
+    |   LOAD file_path INTO tbName
     {
          $$ = std::make_shared<LoadStmt>($2, $4);
          std::cout << "Parsed file path: " << $2 << std::endl;
@@ -557,4 +558,6 @@ set_knob_type:
 tbName: IDENTIFIER;
 
 colName: IDENTIFIER;
+
+file_path: FILE_PATH_VALUE
 %%

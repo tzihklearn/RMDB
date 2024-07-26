@@ -57,8 +57,8 @@ public:
 
         int columnIndex = 0;
         std::vector<ColType> expectedTypes;
-        for (int i = 0; i < tab_.cols.size(); i++) {
-            expectedTypes.push_back(tab_.cols[i].type);
+        for (auto & col : tab_.cols) {
+            expectedTypes.push_back(col.type);
         }
         while (std::getline(ss, item, ',')) {  // Assuming ',' as delimiter
             Value val;
