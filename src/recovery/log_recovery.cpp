@@ -10,6 +10,9 @@ See the Mulan PSL v2 for more details. */
 
 #include "log_recovery.h"
 
+/**
+ * @description: analyze阶段，需要获得脏页表（DPT）和未完成的事务列表（ATT）
+ */
 void RecoveryManager::analyze() {
     //解析log_file
     int fsize = disk_manager_->get_file_size(LOG_FILE_NAME);
@@ -18,6 +21,9 @@ void RecoveryManager::analyze() {
     this->parseLog();
 }
 
+/**
+ * @description: 重做所有未落盘的操作
+ */
 void RecoveryManager::redo() {
     //正向redo每条log
     for (auto iter = this->read_log_records.begin(); iter != this->read_log_records.end(); iter++) {
@@ -25,6 +31,9 @@ void RecoveryManager::redo() {
     }
 }
 
+/**
+ * @description: 回滚未完成的事务
+ */
 void RecoveryManager::undo() {
 //    bool flag = false;
     //逆向undo每条log
@@ -36,8 +45,20 @@ void RecoveryManager::undo() {
         this->UndoLog(*iter);
     }
 
-    for (auto log : this->read_log_records) {
-        delete log;
+//    if (flag) {
+////        std::string filePath = "static_checkpoint.txt"; // 替换为您的文件路径
+////        FILE *file = fopen(filePath.c_str(), "r");
+////        if (file != nullptr) {
+////            fclose(file);
+////        } else {
+////            std::this_thread::sleep_for(std::chrono::seconds(6));
+////        }
+//        std::this_thread::sleep_for(std::chrono::seconds(6));
+//    }
+
+    for (auto iter = this->read_log_records.rbegin(); iter != this->read_log_records.rend(); iter++) {
+        //释放资源
+        delete *iter;
     }
 
     //重建索引
@@ -61,9 +82,11 @@ void RecoveryManager::undo() {
 }
 
 //判断落盘
-bool RecoveryManager::is_record_stroed(const std::string& file_name, const int& page_no, lsn_t now_lsn) {
+bool RecoveryManager::is_record_stroed(const std::string &file_name, const int &page_no, lsn_t now_lsn) {
     RmFileHandle *file_handle = this->sm_manager_->fhs_.at(file_name).get();
-    if (page_no >= file_handle->get_file_hdr().num_pages) return false;
+    if (page_no >= file_handle->get_file_hdr().num_pages) {
+        return false;
+    }
     RmPageHandle page_handle = file_handle->fetch_page_handle(page_no);
     unpin_page_guard upg({file_handle->GetFd(), page_no}, false, buffer_pool_manager_);
     return page_handle.page->get_page_lsn() >= now_lsn;
@@ -188,6 +211,7 @@ void RecoveryManager::UndoLog(LogRecord *log_record) {
     }
 }
 
+//解析LogBuffer.
 void RecoveryManager::parseLog() {
     uint32_t offset = 0;
     //开始解析
@@ -244,7 +268,6 @@ void RecoveryManager::parseLog() {
                 assert(0);
             }
         }
-
         if (offset >= disk_manager_->get_file_size(LOG_FILE_NAME)) {
             break;
         }
