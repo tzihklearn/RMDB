@@ -17,6 +17,13 @@ See the Mulan PSL v2 for more details. */
 #include "storage/disk_manager.h"
 #include "system/sm_manager.h"
 
+class RedoLogsInPage {
+public:
+    RedoLogsInPage() { table_file_ = nullptr; }
+    RmFileHandle* table_file_;
+    std::vector<lsn_t> redo_logs_;   // 在该page上需要redo的操作的lsn
+};
+
 class RecoveryManager {
 public:
     RecoveryManager(DiskManager* disk_manager, BufferPoolManager* buffer_pool_manager, SmManager* sm_manager, LogManager* log_manager) {

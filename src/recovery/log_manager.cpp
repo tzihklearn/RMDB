@@ -16,8 +16,7 @@ See the Mulan PSL v2 for more details. */
  * @param {LogRecord*} log_record 要写入缓冲区的日志记录
  * @return {lsn_t} 返回该日志的日志记录号
  */
-template <typename T>
-lsn_t LogManager::add_log_to_buffer(T *log_record) {
+lsn_t LogManager::add_log_to_buffer(LogRecord *log_record) {
     assert(log_record->log_tot_len_ != 0);
     if (log_buffer_.is_full(log_record->log_tot_len_)) {
         this->flush_log_to_disk(FlushReason::BUFFER_FULL);
@@ -43,7 +42,7 @@ void LogManager::flush_log_to_disk(FlushReason flush_reason) {
     //写回到磁盘
     disk_manager_->write_log(this->get_log_buffer()->buffer_, (int) this->get_log_buffer()->offset_);
 
-    // 维护元数据
+    //维护元数据
     this->persist_lsn_ = this->global_lsn_ - 1;
     this->get_log_buffer()->resetBuffer();
 
@@ -114,8 +113,12 @@ lsn_t LogManager::add_abort_log_record(txn_id_t txn_id) {
 }
 // 静态检查点
 void LogManager::static_checkpoint() {
+//    std::lock_guard<std::mutex> lg(this->latch_);
+//    this->flush_log_to_disk();
+//    this->disk_manager_->write_checkpoint(this->persist_lsn_);
     std::fstream static_checkpoint_outfile;
     static_checkpoint_outfile.open("static_checkpoint_my.txt", std::ios::out | std::ios::app);
     static_checkpoint_outfile << "static checkpoint" << std::endl;
     static_checkpoint_outfile.close();
+
 }
