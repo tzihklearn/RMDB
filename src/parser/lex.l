@@ -40,7 +40,8 @@ value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
 value_string '[^']*'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
-file_path_value ([a-zA-Z0-9_\-\.\/]+)
+file_path_value ([/\./\../][a-zA-Z0-9_\-\.\/]*)
+table_col {identifier}"."{identifier}
 
 %x STATE_COMMENT
 
@@ -135,6 +136,11 @@ file_path_value ([a-zA-Z0-9_\-\.\/]+)
 {file_path_value}  {
     yylval->sv_str = yytext;
     return FILE_PATH_VALUE;
+}
+
+{table_col} {
+    yylval->sv_str = yytext;
+    return TABLE_COL;
 }
     /* EOF */
 <<EOF>> { return T_EOF; }

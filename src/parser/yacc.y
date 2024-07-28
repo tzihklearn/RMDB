@@ -37,8 +37,9 @@ GROUP_BY HAVING IN STATIC_CHECKPOINT LOAD
 %token <sv_bool> VALUE_BOOL
 
 %token <sv_str> FILE_PATH_VALUE
-//%token FILE_PATH
-%type <sv_str> file_path
+
+%token <sv_str> TABLE_COL
+
 
 // specify types for non-terminal symbol
 %type <sv_node> stmt dbStmt ddl dml txnStmt setStmt
@@ -68,6 +69,11 @@ GROUP_BY HAVING IN STATIC_CHECKPOINT LOAD
 %type <sub_select_stmt> sub_select_stmt
 %type <in_op_value> in_op_vlaue
 %type <in_sub_query> in_sub_query
+
+//%token FILE_PATH
+%type <sv_str> file_path
+
+%type <sv_str> table_col_name
 
 %%
 start:
@@ -307,9 +313,9 @@ col:
     {
         $$ = std::make_shared<Col>("", "", SV_AGGREGATE_NULL, "");
     }
-    |    tbName '.' colName
+    |    table_col_name
     {
-        $$ = std::make_shared<Col>($1, $3, SV_AGGREGATE_NULL, "");
+        $$ = std::make_shared<Col>($1, SV_AGGREGATE_NULL, "");
     }
     |   colName
     {
@@ -560,4 +566,6 @@ tbName: IDENTIFIER;
 colName: IDENTIFIER;
 
 file_path: FILE_PATH_VALUE
+
+table_col_name: TABLE_COL
 %%

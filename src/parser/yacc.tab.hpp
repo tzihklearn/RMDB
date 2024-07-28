@@ -108,7 +108,8 @@ extern int yydebug;
     VALUE_INT = 309,               /* VALUE_INT  */
     VALUE_FLOAT = 310,             /* VALUE_FLOAT  */
     VALUE_BOOL = 311,              /* VALUE_BOOL  */
-    FILE_PATH_VALUE = 312          /* FILE_PATH_VALUE  */
+    FILE_PATH_VALUE = 312,         /* FILE_PATH_VALUE  */
+    TABLE_COL = 313                /* TABLE_COL  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif

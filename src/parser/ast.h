@@ -169,6 +169,16 @@ struct Col : public Expr {
 
     Col(std::string tab_name_, std::string col_name_, SvAggregateType ag_type_, std::string as_name_) :
             tab_name(std::move(tab_name_)), col_name(std::move(col_name_)), ag_type(ag_type_), as_name(std::move(as_name_)) {}
+    Col(const std::string& tab_col_name_, SvAggregateType ag_type_, std::string as_name_) :
+            ag_type(ag_type_), as_name(std::move(as_name_)) {
+        auto pos = tab_col_name_.find('.');
+        if (pos != std::string::npos) {
+            tab_name = tab_col_name_.substr(0, pos);
+            col_name = tab_col_name_.substr(pos + 1);
+        } else {
+            col_name = tab_col_name_;
+        }
+    }
 };
 
 struct SetClause : public TreeNode {
