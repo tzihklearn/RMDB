@@ -72,8 +72,37 @@ public:
             std::vector<char> newRecord(fh_->get_file_hdr().record_size);
             memcpy(newRecord.data(), rec->data, fh_->get_file_hdr().record_size);
             for (auto &setClause: set_clauses_) {
-                auto lhsCol = tab_.get_col(setClause.lhs.col_name);
-                memcpy(newRecord.data() + lhsCol->offset, setClause.rhs.raw->data, lhsCol->len);
+                if (setClause.is_rhs_val) {
+                    auto lhsCol = tab_.get_col(setClause.lhs.col_name);
+                    memcpy(newRecord.data() + lhsCol->offset, setClause.rhs.raw->data, lhsCol->len);
+                } else {
+                    auto lhsCol = tab_.get_col(setClause.lhs.col_name);
+                    auto valueCol = tab_.get_col(setClause.r_expr.col.col_name);
+                    char *rec_buf = rec->data + valueCol->offset;
+                    switch (valueCol->type) {
+                        case TYPE_INT: {
+                            int* val = (int *) rec_buf;
+                            art_int(val, setClause.r_expr);
+                            Value val_;
+                            val_.set_int(*val);
+                            val_.init_raw(sizeof(int));
+                            memcpy(newRecord.data() + lhsCol->offset, val_.raw->data, lhsCol->len);
+                            break;
+                        }
+                        case TYPE_FLOAT: {
+                            float* val = (float *) rec_buf;
+                            art_fload(val, setClause.r_expr);
+                            Value val_;
+                            val_.set_float(*val);
+                            val_.init_raw(sizeof(float));
+                            memcpy(newRecord.data() + lhsCol->offset, val_.raw->data, lhsCol->len);
+                            break;
+                        }
+                        default:
+                            throw InternalError("Invalid type");
+                            break;
+                    }
+                }
             }
 
             // 记录更新前后的数据，用于日志记录
@@ -139,4 +168,92 @@ public:
     }
 
     Rid &rid() override { return _abstract_rid; }
+
+    void art_int(int* val, const SetRExpr& setRExpr) {
+        switch (setRExpr.op) {
+            case ArtOP::OP_ADD: {
+                if (setRExpr.value.type == ColType::TYPE_INT) {
+                    *val += setRExpr.value.int_val;
+                } else if (setRExpr.value.type == ColType::TYPE_FLOAT) {
+                    *val += (int) setRExpr.value.float_val;
+                }
+//                *val += setRExpr.value.int_val;
+                break;
+            }
+            case ArtOP::OP_SUB: {
+//                *val -= setRExpr.value.int_val;
+                if (setRExpr.value.type == ColType::TYPE_INT) {
+                    *val -= setRExpr.value.int_val;
+                } else if (setRExpr.value.type == ColType::TYPE_FLOAT) {
+                    *val -= (int) setRExpr.value.float_val;
+                }
+                break;
+            }
+            case ArtOP::OP_MUL: {
+//                *val *= setRExpr.value.int_val;
+                if (setRExpr.value.type == ColType::TYPE_INT) {
+                    *val *= setRExpr.value.int_val;
+                } else if (setRExpr.value.type == ColType::TYPE_FLOAT) {
+                    *val *= (int) setRExpr.value.float_val;
+                }
+                break;
+            }
+            case ArtOP::OP_DIV: {
+//                *val /= setRExpr.value.int_val;
+                if (setRExpr.value.type == ColType::TYPE_INT) {
+                    *val /= setRExpr.value.int_val;
+                } else if (setRExpr.value.type == ColType::TYPE_FLOAT) {
+                    *val /= (int) setRExpr.value.float_val;
+                }
+                break;
+            }
+            default:
+                throw InternalError("Invalid operation");
+                break;
+        }
+    }
+
+    void art_fload(float* val, const SetRExpr& setRExpr) {
+        switch (setRExpr.op) {
+            case ArtOP::OP_ADD: {
+                if (setRExpr.value.type == ColType::TYPE_FLOAT) {
+                    *val += setRExpr.value.float_val;
+                } else if (setRExpr.value.type == ColType::TYPE_INT) {
+                    *val += (float) setRExpr.value.int_val;
+                }
+//                *val += setRExpr.value.int_val;
+                break;
+            }
+            case ArtOP::OP_SUB: {
+//                *val -= setRExpr.value.int_val;
+                if (setRExpr.value.type == ColType::TYPE_FLOAT) {
+                    *val -= setRExpr.value.float_val;
+                } else if (setRExpr.value.type == ColType::TYPE_INT) {
+                    *val -= (float) setRExpr.value.int_val;
+                }
+                break;
+            }
+            case ArtOP::OP_MUL: {
+//                *val *= setRExpr.value.int_val;
+                if (setRExpr.value.type == ColType::TYPE_FLOAT) {
+                    *val *= setRExpr.value.float_val;
+                } else if (setRExpr.value.type == ColType::TYPE_INT) {
+                    *val *= (float) setRExpr.value.int_val;
+                }
+                break;
+            }
+            case ArtOP::OP_DIV: {
+//                *val /= setRExpr.value.int_val;
+                if (setRExpr.value.type == ColType::TYPE_FLOAT) {
+                    *val /= setRExpr.value.float_val;
+                } else if (setRExpr.value.type == ColType::TYPE_INT) {
+                    *val /= (float) setRExpr.value.int_val;
+                }
+                break;
+            }
+            default:
+                throw InternalError("Invalid operation");
+                break;
+        }
+    }
 };

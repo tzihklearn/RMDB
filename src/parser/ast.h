@@ -27,6 +27,10 @@ enum SvCompOp {
     SV_OP_EQ, SV_OP_NE, SV_OP_LT, SV_OP_GT, SV_OP_LE, SV_OP_GE, SV_OP_IN
 };
 
+enum SvArtOp {
+    AGG_OP_ADD, AGG_OP_SUB, AGG_OP_MUL, AGG_OP_DIV
+};
+
 enum OrderByDir {
     OrderBy_DEFAULT,
     OrderBy_ASC,
@@ -187,7 +191,11 @@ struct SetClause : public TreeNode {
 
     SetClause(std::string col_name_, std::shared_ptr<Value> val_) :
             col_name(std::move(col_name_)), val(std::move(val_)) {}
+
+    SetClause() {}
 };
+
+
 
 struct BinaryExpr : public TreeNode {
     std::shared_ptr<Col> lhs;
@@ -196,6 +204,23 @@ struct BinaryExpr : public TreeNode {
 
     BinaryExpr(std::shared_ptr<Col> lhs_, SvCompOp op_, std::shared_ptr<Expr> rhs_) :
             lhs(std::move(lhs_)), op(op_), rhs(std::move(rhs_)) {}
+};
+
+struct ArtExpr : public Expr {
+    std::shared_ptr<Col> lhs;
+    SvArtOp op;
+    std::shared_ptr<Value> rhs;
+
+    ArtExpr(std::shared_ptr<Col> lhs_, SvArtOp op_, std::shared_ptr<Value> rhs_) :
+            lhs(std::move(lhs_)), op(op_), rhs(std::move(rhs_)) {}
+};
+
+struct SetClauseCol : public SetClause {
+    std::string col_name;
+    std::shared_ptr<ArtExpr> val;
+
+    SetClauseCol(std::string col_name_, std::shared_ptr<ArtExpr> val_) :
+                col_name(std::move(col_name_)), val(std::move(val_)) {}
 };
 
 struct OrderBy : public TreeNode
@@ -345,12 +370,16 @@ struct SemValue {
 
     SvCompOp sv_comp_op;
 
+    SvArtOp sv_art_op;
+
     std::shared_ptr<TypeLen> sv_type_len;
 
     std::shared_ptr<Field> sv_field;
     std::vector<std::shared_ptr<Field>> sv_fields;
 
     std::shared_ptr<Expr> sv_expr;
+
+    std::shared_ptr<ArtExpr> sv_art_expr;
 
     std::shared_ptr<Value> sv_val;
     std::vector<std::shared_ptr<Value>> sv_vals;

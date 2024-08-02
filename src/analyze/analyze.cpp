@@ -188,22 +188,40 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
         auto tableMeta = sm_manager_->db_.get_table(tableName);
 
         for (auto &clause: x->set_clauses) {
+
             SetClause setClause;
+            if (auto setClauseCol = std::dynamic_pointer_cast<ast::SetClauseCol>(clause)) {
+                TabCol selColumn = {.tab_name = tableName, .col_name = setClauseCol->col_name};
+                setClause.lhs = selColumn;
 
-            TabCol selColumn = {.tab_name = tableName, .col_name = clause->col_name};
-            setClause.lhs = selColumn;
+                ColMeta columnMeta = *(tableMeta.get_col(selColumn.col_name));
+                TabCol rhsColumn = {.tab_name = setClauseCol->val->lhs->tab_name,
+                                    .col_name = setClauseCol->val->lhs->col_name};
+                if (rhsColumn.tab_name.empty()) {
+                    rhsColumn.tab_name = tableName;
+                }
+                setClause.r_expr.col = rhsColumn;
+                setClause.r_expr.op = convert_sv_art_op(setClauseCol->val->op);
+                setClause.r_expr.value = convert_sv_value(setClauseCol->val->rhs);
+                setClause.is_rhs_val = false;
+            } else {
+                TabCol selColumn = {.tab_name = tableName, .col_name = clause->col_name};
+                setClause.lhs = selColumn;
 
-            ColMeta columnMeta = *(tableMeta.get_col(selColumn.col_name));
-            auto value = convert_sv_value(clause->val);
+                ColMeta columnMeta = *(tableMeta.get_col(selColumn.col_name));
+                auto value = convert_sv_value(clause->val);
 
-            if (columnMeta.type == TYPE_FLOAT && value.type == TYPE_INT) {
-                Value tmp;
-                tmp.set_float(value.int_val);
-                value = tmp;
+                if (columnMeta.type == TYPE_FLOAT && value.type == TYPE_INT) {
+                    Value tmp;
+                    tmp.set_float(value.int_val);
+                    value = tmp;
+                }
+
+                setClause.rhs = value;
+                setClause.rhs.init_raw(columnMeta.type == TYPE_STRING ? columnMeta.len : sizeof(value.type));
+                setClause.is_rhs_val = true;
             }
 
-            setClause.rhs = value;
-            setClause.rhs.init_raw(columnMeta.type == TYPE_STRING ? columnMeta.len : sizeof(value.type));
             query->set_clauses.push_back(setClause);
         }
 
@@ -439,6 +457,16 @@ CompOp Analyze::convert_sv_comp_op(ast::SvCompOp op) {
             {ast::SV_OP_LE, OP_LE},
             {ast::SV_OP_GE, OP_GE},
             {ast::SV_OP_IN, OP_IN},
+    };
+    return m.at(op);
+}
+
+ArtOP Analyze::convert_sv_art_op(ast::SvArtOp op) {
+    std::map<ast::SvArtOp, ArtOP> m = {
+            {ast::AGG_OP_ADD, OP_ADD},
+            {ast::AGG_OP_SUB, OP_SUB},
+            {ast::AGG_OP_MUL, OP_MUL},
+            {ast::AGG_OP_DIV, OP_DIV},
     };
     return m.at(op);
 }

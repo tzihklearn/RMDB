@@ -247,6 +247,10 @@ enum CompOp {
     OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE, OP_IN
 };
 
+enum ArtOP {
+    OP_ADD, OP_SUB, OP_MUL, OP_DIV
+};
+
 struct Condition {
     TabCol lhs_col;   // left-hand side column
     CompOp op;        // comparison operator
@@ -257,10 +261,20 @@ struct Condition {
     std::vector<Value> rhs_in_vals;    // right-hand side value list for IN operator
 };
 
+struct SetRExpr {
+    TabCol col;
+    ArtOP op;
+    Value value;
+};
+
 struct SetClause {
     TabCol lhs;
     Value rhs;
+    SetRExpr r_expr;
+    bool is_rhs_val{};
 };
+
+
 
 enum AggregateOp {
     AG_COUNT, AG_SUM, AG_MAX, AG_MIN, AG_NULL

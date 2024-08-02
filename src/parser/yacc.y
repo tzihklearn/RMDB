@@ -47,7 +47,9 @@ GROUP_BY HAVING IN STATIC_CHECKPOINT LOAD
 %type <sv_fields> fieldList
 %type <sv_type_len> type
 %type <sv_comp_op> op
+%type <sv_art_op> art_op
 %type <sv_expr> expr
+%type <sv_art_expr> artExpr
 %type <sv_val> value
 %type <sv_vals> valueList
 %type <sv_str> tbName colName
@@ -401,6 +403,26 @@ op:
     }
     ;
 
+art_op:
+	'+'
+    {
+        $$ = AGG_OP_ADD;
+    }
+    |   '-'
+    {
+    	$$ = AGG_OP_SUB;
+    }
+    |   '*'
+    {
+    	$$ = AGG_OP_MUL;
+    }
+    |   '/'
+    {
+    	$$ = AGG_OP_DIV;
+    }
+    ;
+
+
 expr:
         value
     {
@@ -456,6 +478,17 @@ setClause:
         colName '=' value
     {
         $$ = std::make_shared<SetClause>($1, $3);
+    }
+    |  colName '=' artExpr
+    {
+    	$$ = std::make_shared<SetClauseCol>($1, $3);
+    }
+    ;
+
+artExpr:
+	col art_op value
+    {
+    	$$ = std::make_shared<ArtExpr>($1, $2, $3);
     }
     ;
 

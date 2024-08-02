@@ -39,7 +39,7 @@ identifier {alpha}(_|{alpha}|{digit})*
 value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
 value_string '[^']*'
-single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
+single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."|"+"|"-"|"/"
 file_path_value ([/\./\../][a-zA-Z0-9_\-\.\/]*)
 table_col {identifier}"."{identifier}
 
@@ -79,7 +79,6 @@ table_col {identifier}"."{identifier}
 "INT" { return INT; }
 "CHAR" { return CHAR; }
 "FLOAT" { return FLOAT; }
-"DATETIME" { return DATETIME; }
 "INDEX" { return INDEX; }
 "AND" { return AND; }
 "JOIN" {return JOIN;}
@@ -100,7 +99,7 @@ table_col {identifier}"."{identifier}
 "ENABLE_SORTMERGE" { return ENABLE_SORTMERGE; }
 "STATIC_CHECKPOINT" { return STATIC_CHECKPOINT; }
 "LOAD" { return LOAD; }
-"TRUE" { 
+"TRUE" {
     yylval->sv_bool = true;
     return VALUE_BOOL; 
 }
