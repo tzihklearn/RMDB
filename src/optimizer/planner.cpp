@@ -613,6 +613,10 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
     } else if (auto x = std::dynamic_pointer_cast<ast::SetStmt>(query->parse)) {
         // 生成环境变量设置plan
         plannerRoot = std::make_shared<SetKnobPlan>(x->set_knob_type_, x->bool_val_);
+    } else if (auto x = std::dynamic_pointer_cast<ast::LoadStmt>(query->parse)) {
+        // load;
+        // 这里创建一个新的LoadPlan
+        plannerRoot = std::make_shared<LoadPlan>(x->file_name, x->tab_name);
     } else {
         throw InternalError("Unexpected AST root");
     }

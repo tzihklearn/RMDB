@@ -26,13 +26,15 @@ See the Mulan PSL v2 for more details. */
 #include "common/common.h"
 #include "execution/execution_aggregation.h"
 #include "execution/execution_merge_sort.h"
+#include "execution/execution_load.h"
 
 typedef enum portalTag {
     PORTAL_Invalid_Query = 0,
     PORTAL_ONE_SELECT,
     PORTAL_DML_WITHOUT_SELECT,
     PORTAL_MULTI_QUERY,
-    PORTAL_CMD_UTILITY
+    PORTAL_CMD_UTILITY,
+    PORTAL_LOAD
 } portalTag;
 
 
@@ -135,6 +137,13 @@ public:
                     throw InternalError("Unexpected field type");
                     break;
             }
+        } else if (auto x = std::dynamic_pointer_cast<LoadPlan>(plan)) {
+            // 处理load指令的逻辑
+            // 这里假设LoadExecutor是你定义的执行器类来处理load指令
+            std::unique_ptr<AbstractExecutor> root = std::make_unique<LoadExecutor>(sm_manager_, x->getFileName(),
+                                                                                    x->getTableName(), context);
+            // 返回适当的PortalStmt。这里使用PORTAL_LOAD作为Portal类型
+            return std::make_shared<PortalStmt>(PORTAL_LOAD, std::vector<TabCol>(), std::move(root), plan);
         } else {
             throw InternalError("Unexpected field type");
         }
@@ -158,6 +167,10 @@ public:
             }
             case PORTAL_CMD_UTILITY: {
                 ql->run_cmd_utility(portal->plan, txn_id, context);
+                break;
+            }
+            case PORTAL_LOAD: {
+                portal->root->Next();
                 break;
             }
             default: {
