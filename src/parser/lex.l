@@ -39,7 +39,9 @@ identifier {alpha}(_|{alpha}|{digit})*
 value_int {sign}?{digit}+
 value_float {sign}?{digit}+\.({digit}+)?
 value_string '[^']*'
-single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
+single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."|"+"|"-"|"/"
+file_path_value ([/\./\../][a-zA-Z0-9_\-\.\/]*)
+table_col {identifier}"."{identifier}
 
 %x STATE_COMMENT
 
@@ -77,6 +79,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "INT" { return INT; }
 "CHAR" { return CHAR; }
 "FLOAT" { return FLOAT; }
+"DATETIME" { return DATETIME; }
 "INDEX" { return INDEX; }
 "AND" { return AND; }
 "JOIN" {return JOIN;}
@@ -96,6 +99,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "ENABLE_NESTLOOP" { return ENABLE_NESTLOOP; }
 "ENABLE_SORTMERGE" { return ENABLE_SORTMERGE; }
 "STATIC_CHECKPOINT" { return STATIC_CHECKPOINT; }
+"LOAD" { return LOAD; }
 "TRUE" { 
     yylval->sv_bool = true;
     return VALUE_BOOL; 
@@ -127,6 +131,16 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 {value_string} {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
     return VALUE_STRING;
+}
+
+{file_path_value}  {
+    yylval->sv_str = yytext;
+    return FILE_PATH_VALUE;
+}
+
+{table_col} {
+    yylval->sv_str = yytext;
+    return TABLE_COL;
 }
     /* EOF */
 <<EOF>> { return T_EOF; }

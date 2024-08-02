@@ -16,7 +16,10 @@ See the Mulan PSL v2 for more details. */
 
 #include <atomic>
 #include <chrono>
-enum class FlushReason{DEFAULT = 0, BUFFER_FULL, TIMEOUT, UNSAFE, CLOSE_DB};
+
+enum class FlushReason {
+    DEFAULT = 0, BUFFER_FULL, TIMEOUT, UNSAFE, CLOSE_DB
+};
 static constexpr std::chrono::duration<int64_t> FLUSH_TIMEOUT = std::chrono::seconds(3);
 // the offset of log_type_ in log header
 static constexpr int OFFSET_LOG_TYPE = 0;

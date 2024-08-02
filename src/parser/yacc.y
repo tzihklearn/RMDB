@@ -22,8 +22,8 @@ using namespace ast;
 
 // keywords
 %token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY AS GROUP
-WHERE UPDATE SET SELECT INT CHAR FLOAT INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
-GROUP_BY HAVING IN STATIC_CHECKPOINT
+WHERE UPDATE SET SELECT INT CHAR FLOAT DATETIME INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY ENABLE_NESTLOOP ENABLE_SORTMERGE
+GROUP_BY HAVING IN STATIC_CHECKPOINT LOAD
 
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
@@ -36,13 +36,20 @@ GROUP_BY HAVING IN STATIC_CHECKPOINT
 %token <sv_float> VALUE_FLOAT
 %token <sv_bool> VALUE_BOOL
 
+%token <sv_str> FILE_PATH_VALUE
+
+%token <sv_str> TABLE_COL
+
+
 // specify types for non-terminal symbol
 %type <sv_node> stmt dbStmt ddl dml txnStmt setStmt
 %type <sv_field> field
 %type <sv_fields> fieldList
 %type <sv_type_len> type
 %type <sv_comp_op> op
+%type <sv_art_op> art_op
 %type <sv_expr> expr
+%type <sv_art_expr> artExpr
 %type <sv_val> value
 %type <sv_vals> valueList
 %type <sv_str> tbName colName
@@ -64,6 +71,11 @@ GROUP_BY HAVING IN STATIC_CHECKPOINT
 %type <sub_select_stmt> sub_select_stmt
 %type <in_op_value> in_op_vlaue
 %type <in_sub_query> in_sub_query
+
+//%token FILE_PATH
+%type <sv_str> file_path
+
+%type <sv_str> table_col_name
 
 %%
 start:
@@ -160,6 +172,11 @@ ddl:
     {
     	$$ = std::make_shared<StaticCheckpoint>();
     }
+    |   LOAD file_path INTO tbName
+    {
+         $$ = std::make_shared<LoadStmt>($2, $4);
+         std::cout << "Parsed file path: " << $2 << std::endl;
+    }
     ;
 
 dml:
@@ -222,6 +239,10 @@ type:
     |   FLOAT
     {
         $$ = std::make_shared<TypeLen>(SV_TYPE_FLOAT, sizeof(float));
+    }
+    |   DATETIME
+    {
+        $$ = std::make_shared<TypeLen>(SV_TYPE_STRING, 30);
     }
     ;
 
@@ -294,9 +315,9 @@ col:
     {
         $$ = std::make_shared<Col>("", "", SV_AGGREGATE_NULL, "");
     }
-    |    tbName '.' colName
+    |    table_col_name
     {
-        $$ = std::make_shared<Col>($1, $3, SV_AGGREGATE_NULL, "");
+        $$ = std::make_shared<Col>($1, SV_AGGREGATE_NULL, "");
     }
     |   colName
     {
@@ -382,6 +403,26 @@ op:
     }
     ;
 
+art_op:
+	'+'
+    {
+        $$ = AGG_OP_ADD;
+    }
+    |   '-'
+    {
+    	$$ = AGG_OP_SUB;
+    }
+    |   '*'
+    {
+    	$$ = AGG_OP_MUL;
+    }
+    |   '/'
+    {
+    	$$ = AGG_OP_DIV;
+    }
+    ;
+
+
 expr:
         value
     {
@@ -437,6 +478,17 @@ setClause:
         colName '=' value
     {
         $$ = std::make_shared<SetClause>($1, $3);
+    }
+    |  colName '=' artExpr
+    {
+    	$$ = std::make_shared<SetClauseCol>($1, $3);
+    }
+    ;
+
+artExpr:
+	col art_op value
+    {
+    	$$ = std::make_shared<ArtExpr>($1, $2, $3);
     }
     ;
 
@@ -545,4 +597,8 @@ set_knob_type:
 tbName: IDENTIFIER;
 
 colName: IDENTIFIER;
+
+file_path: FILE_PATH_VALUE
+
+table_col_name: TABLE_COL
 %%

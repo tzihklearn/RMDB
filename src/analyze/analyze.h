@@ -43,6 +43,9 @@ class Query{
     // join_col
     std::map<std::string, TabCol> join_col;
 
+    // 文件地址
+    std::string file_url;
+
     Query()= default;
 
 };
@@ -64,6 +67,7 @@ private:
     void check_clause(const std::vector<std::string> &tab_names, std::vector<Condition> &conds);
     Value convert_sv_value(const std::shared_ptr<ast::Value> &sv_val);
     CompOp convert_sv_comp_op(ast::SvCompOp op);
+    ArtOP convert_sv_art_op(ast::SvArtOp op);
     AggregateOp convert_sv_aggregate_op(ast::SvAggregateType type);
     std::string convert_sv_aggregate_to_str(ast::SvAggregateType type);
     bool convert_sv_order_by_dir(ast::OrderByDir orderByDir);
