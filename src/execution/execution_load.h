@@ -1,5 +1,6 @@
 #pragma once
 
+#include <future>
 #include "execution_defs.h"
 #include "execution_manager.h"
 #include "executor_abstract.h"
@@ -28,24 +29,49 @@ public:
 
     // 开始执行
     std::unique_ptr<RmRecord> Next() override {
-        std::ifstream file(file_name_);
-        if (!file.is_open()) {
-            throw InternalError("Cannot open file: " + file_name_);
-        }
-        // 忽略第一行
-        std::string header;
-        std::getline(file, header);
+//        std::ifstream file(file_name_);
+//        if (!file.is_open()) {
+//            throw InternalError("Cannot open file: " + file_name_);
+//        }
+//        // 忽略第一行
+//        std::string header;
+//        std::getline(file, header);
+//
+//        std::string line;
+//        while (std::getline(file, line)) {
+//            // 解析CSV
+//            std::vector<Value> values = parseCSVLine(line);
+//            line_ = line;
+//
+//            // 插入数据到表中
+//            insertIntoTable(table_name_, values);
+//        }
+//        std::cout << "load insert complete!" << std::endl;
+//        return nullptr;
+        // 使用std::async启动异步任务
+        std::future<std::unique_ptr<RmRecord>> result = std::async(std::launch::async, [this]() -> std::unique_ptr<RmRecord> {
+            std::ifstream file(file_name_);
+            if (!file.is_open()) {
+                throw InternalError("Cannot open file: " + file_name_);
+            }
+            // 忽略第一行
+            std::string header;
+            std::getline(file, header);
 
-        std::string line;
-        while (std::getline(file, line)) {
-            // 解析CSV
-            std::vector<Value> values = parseCSVLine(line);
-            line_ = line;
+            std::string line;
+            while (std::getline(file, line)) {
+                // 解析CSV
+                std::vector<Value> values = parseCSVLine(line);
+                line_ = line;
 
-            // 插入数据到表中
-            insertIntoTable(table_name_, values);
-        }
-        std::cout << "load insert complete!" << std::endl;
+                // 插入数据到表中
+                insertIntoTable(table_name_, values);
+            }
+            std::cout << "load insert complete!" << std::endl;
+            return nullptr;
+        });
+
+        // 返回一个空的std::unique_ptr，因为实际的返回值将在异步任务中处理
         return nullptr;
     }
 
