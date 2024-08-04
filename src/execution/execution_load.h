@@ -52,6 +52,14 @@ public:
         std::future<std::unique_ptr<RmRecord>> result = std::async(std::launch::async, [this]() -> std::unique_ptr<RmRecord> {
             std::ifstream file(file_name_);
             if (!file.is_open()) {
+                char buffer[1024];
+                // 使用getcwd获取当前工作目录
+                if (getcwd(buffer, sizeof(buffer)) != nullptr) {
+                    // 打印当前工作目录的路径
+                    std::cout << "当前工作目录是: " << buffer << std::endl;
+                } else {
+                    std::cerr << "获取当前工作目录失败" << std::endl;
+                }
                 throw InternalError("Cannot open file: " + file_name_);
             }
             // 忽略第一行
@@ -70,10 +78,12 @@ public:
             std::cout << "load insert complete!" << std::endl;
             return nullptr;
         });
+        std::cout << "load ok!" << std::endl;
 
         // 返回一个空的std::unique_ptr，因为实际的返回值将在异步任务中处理
         return nullptr;
     }
+
 
     // 解析CSV行，返回值列表
     std::vector<Value> parseCSVLine(const std::string &line) {

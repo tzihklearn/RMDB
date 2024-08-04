@@ -206,7 +206,8 @@ void RmFileHandle::insert_record(const Rid &rid, char *buf) {
     Bitmap::set(page_hdl.bitmap, rid.slot_no);
     int record_nums = file_hdr_.num_records_per_page;
     if (++page_hdl.page_hdr->num_records == record_nums) {
-        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+//        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+        file_hdr_.first_free_page_no = RM_NO_PAGE;
     }
     buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
 }
