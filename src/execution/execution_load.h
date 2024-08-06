@@ -96,6 +96,7 @@ public:
         for (auto & col : tab_.cols) {
             expectedTypes.push_back(col.type);
         }
+        int i = 0;
         while (std::getline(ss, item, ',')) {  // Assuming ',' as delimiter
             Value val;
 
@@ -119,6 +120,11 @@ public:
 
             values.push_back(val);
             columnIndex++;
+
+            ++i;
+            if (i >= 1000) {
+                break;
+            }
         }
 
         if (columnIndex != expectedTypes.size()) {
