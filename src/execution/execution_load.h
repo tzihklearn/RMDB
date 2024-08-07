@@ -162,7 +162,7 @@ public:
             columnIndex++;
 
             ++i;
-            if (i >= 1000) {
+            if (i >= 500) {
                 break;
             }
         }
