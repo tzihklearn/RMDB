@@ -38,4 +38,5 @@ public:
     char *data_send_;
     int *offset_;
     bool ellipsis_;
+    std::string file_name_;
 };

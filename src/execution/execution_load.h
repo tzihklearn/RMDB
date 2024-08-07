@@ -29,6 +29,7 @@ public:
 
     // 开始执行
     std::unique_ptr<RmRecord> Next() override {
+        context_->file_name_ = file_name_;
 //        std::ifstream file(file_name_);
 //        if (!file.is_open()) {
 //            throw InternalError("Cannot open file: " + file_name_);
@@ -48,9 +49,43 @@ public:
 //        }
 //        std::cout << "load insert complete!" << std::endl;
 //        return nullptr;
-        // 使用std::async启动异步任务
-        std::future<std::unique_ptr<RmRecord>> result = std::async(std::launch::async, [this]() -> std::unique_ptr<RmRecord> {
-            std::ifstream file(file_name_);
+//        // 使用std::async启动异步任务
+//        auto result_ = std::async(std::launch::async, [this]() -> std::unique_ptr<RmRecord> {
+//            std::ifstream file(file_name_);
+//            if (!file.is_open()) {
+//                char buffer[1024];
+//                // 使用getcwd获取当前工作目录
+//                if (getcwd(buffer, sizeof(buffer)) != nullptr) {
+//                    // 打印当前工作目录的路径
+//                    std::cout << "当前工作目录是: " << buffer << std::endl;
+//                } else {
+//                    std::cerr << "获取当前工作目录失败" << std::endl;
+//                }
+//                throw InternalError("Cannot open file: " + file_name_);
+//            }
+//            // 忽略第一行
+//            std::string header;
+//            std::getline(file, header);
+//
+//            std::string line;
+//            while (std::getline(file, line)) {
+//                // 解析CSV
+//                std::vector<Value> values = parseCSVLine(line);
+//                line_ = line;
+//
+//                // 插入数据到表中
+//                insertIntoTable(table_name_, values);
+//            }
+//            std::cout << "load insert complete!" << std::endl;
+//            return nullptr;
+//        });
+        // 创建一个线程来执行异步任务
+        std::thread thread([this]() {
+            auto file_name = context_->file_name_;
+            auto table_name = table_name_;
+            auto my_line = line_;
+            // 异步任务的内容
+            std::ifstream file(file_name);
             if (!file.is_open()) {
                 char buffer[1024];
                 // 使用getcwd获取当前工作目录
@@ -60,7 +95,8 @@ public:
                 } else {
                     std::cerr << "获取当前工作目录失败" << std::endl;
                 }
-                throw InternalError("Cannot open file: " + file_name_);
+                // 处理文件打开失败的情况
+                throw InternalError("Cannot open file: " + file_name);
             }
             // 忽略第一行
             std::string header;
@@ -68,16 +104,20 @@ public:
 
             std::string line;
             while (std::getline(file, line)) {
-                // 解析CSV
                 std::vector<Value> values = parseCSVLine(line);
-                line_ = line;
+                my_line = line;
 
                 // 插入数据到表中
-                insertIntoTable(table_name_, values);
+                insertIntoTable(table_name, values);
             }
+//            for (int i = 0; i < 10000; ++i) {
+//                std::cout << &"load: " [ i] << std::endl;
+//            }
             std::cout << "load insert complete!" << std::endl;
-            return nullptr;
         });
+
+        // 等待线程启动，但立即返回
+        thread.detach();
         std::cout << "load ok!" << std::endl;
 
         // 返回一个空的std::unique_ptr，因为实际的返回值将在异步任务中处理
