@@ -81,6 +81,8 @@ public:
 //        });
         // 创建一个线程来执行异步任务
         std::thread thread([this]() {
+            int a[2];
+            a[3] = 1;
             auto file_name = context_->file_name_;
             auto table_name = table_name_;
             auto my_line = line_;
