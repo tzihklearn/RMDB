@@ -69,8 +69,12 @@ Rid RmFileHandle::insert_record(char *buf, Context *context, bool is_abort) {
     Bitmap::set(page_hdl.bitmap, slot_no);
 
     // 更新page_handle.page_hdr的数据结构
+//    if (++page_hdl.page_hdr->num_records == record_nums) {
+//        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+//    }
     if (++page_hdl.page_hdr->num_records == record_nums) {
-        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+//        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+        file_hdr_.first_free_page_no = RM_NO_PAGE;
     }
 
     Rid rid = Rid{page_hdl.page->get_page_id().page_no, slot_no};
@@ -140,8 +144,12 @@ void RmFileHandle::insert_record(Rid &rid, char *buf, Context *context, bool is_
     // 更新page_handle中的数据结构
     Bitmap::set(page_hdl.bitmap, rid.slot_no);
     int record_nums = file_hdr_.num_records_per_page;
+//    if (++page_hdl.page_hdr->num_records == record_nums) {
+//        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+//    }
     if (++page_hdl.page_hdr->num_records == record_nums) {
-        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+//        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+        file_hdr_.first_free_page_no = RM_NO_PAGE;
     }
 
     if(context != nullptr && !is_abort) {

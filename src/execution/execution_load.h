@@ -29,7 +29,8 @@ public:
 
     // 开始执行
     std::unique_ptr<RmRecord> Next() override {
-        context_->file_name_ = file_name_;
+//        context_->file_name_ = file_name_;
+//        context_->cols = tab_.cols;
 //        std::ifstream file(file_name_);
 //        if (!file.is_open()) {
 //            throw InternalError("Cannot open file: " + file_name_);
@@ -81,10 +82,18 @@ public:
 //        });
         // 创建一个线程来执行异步任务
         std::thread thread([this]() {
-
-            auto file_name = context_->file_name_;
+//            std::cout << "Thread is going to sleep for 10 seconds\n";
+//            std::this_thread::sleep_for(std::chrono::seconds(3)); // 休眠10秒
+            auto file_name = file_name_;
             auto table_name = table_name_;
             auto my_line = line_;
+            auto context = context_;
+            auto sm_manager = sm_manager_;
+            auto cols = tab_.cols;
+            std::vector<ColType> expectedTypes;
+            for (auto & col : cols) {
+                expectedTypes.push_back(col.type);
+            }
             // 异步任务的内容
             std::ifstream file(file_name);
             if (!file.is_open()) {
@@ -105,11 +114,11 @@ public:
 
             std::string line;
             while (std::getline(file, line)) {
-                std::vector<Value> values = parseCSVLine(line);
+                std::vector<Value> values = parseCSVLine(line, expectedTypes);
                 my_line = line;
 
                 // 插入数据到表中
-                insertIntoTable(table_name, values);
+                insertIntoTable(table_name, values, sm_manager, context);
             }
 //            for (int i = 0; i < 10000; ++i) {
 //                std::cout << &"load: " [ i] << std::endl;
@@ -119,6 +128,8 @@ public:
 
         // 等待线程启动，但立即返回
         thread.detach();
+        std::cout << "Thread is going to sleep for 1 seconds\n";
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠10秒
         std::cout << "load ok!" << std::endl;
 
         // 返回一个空的std::unique_ptr，因为实际的返回值将在异步任务中处理
@@ -127,16 +138,13 @@ public:
 
 
     // 解析CSV行，返回值列表
-    std::vector<Value> parseCSVLine(const std::string &line) {
+    std::vector<Value> parseCSVLine(const std::string &line, const std::vector<ColType> &expectedTypes) {
         std::vector<Value> values;
         std::stringstream ss(line);
         std::string item;
 
         int columnIndex = 0;
-        std::vector<ColType> expectedTypes;
-        for (auto & col : tab_.cols) {
-            expectedTypes.push_back(col.type);
-        }
+
         int i = 0;
         while (std::getline(ss, item, ',')) {  // Assuming ',' as delimiter
             Value val;
@@ -163,7 +171,7 @@ public:
             columnIndex++;
 
             ++i;
-            if (i >= 50) {
+            if (i >= 100) {
                 break;
             }
         }
@@ -176,7 +184,7 @@ public:
     }
 
     // 将数据插入到表中
-    void insertIntoTable(const std::string &table_name, const std::vector<Value> &values) {
+    void insertIntoTable(const std::string &table_name, const std::vector<Value> &values, SmManager *sm_manager, Context *context) {
         // 使用数据库系统的API或方法将数据插入到表中
 //        RmRecord rec(fh_->get_file_hdr().record_size);
 //        for (size_t i = 0; i < values.size(); i++) {
@@ -190,7 +198,7 @@ public:
 //        }
 //        fh_->insert_record(rec.data, context_);
         //insert
-        InsertExecutor insertExecutor(sm_manager_, table_name_, values, context_);
+        InsertExecutor insertExecutor(sm_manager, table_name, values, context);
         insertExecutor.Next();
 //        std::cout << "insert :" << line_ << std::endl;
     }
