@@ -26,6 +26,7 @@ See the Mulan PSL v2 for more details. */
 std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse, Context *context) {
     std::shared_ptr<Query> query = std::make_shared<Query>();
 
+    bool flag = true;
     if (auto x = std::dynamic_pointer_cast<ast::SelectStmt>(parse)) {
         query->tables = std::move(x->tabs);
 
@@ -248,6 +249,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
             }
         }
     } else if (auto x = std::dynamic_pointer_cast<ast::LoadStmt>(parse)) {
+        flag = false;
         std::string fileName = x->file_name;
         std::string tableName = x->tab_name;
 
@@ -261,6 +263,14 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
             throw TableNotFoundError(tableName);
         }
     }
+
+    if (flag) {
+        while (*context->load_count != 0) {
+//                        std::cout << "Thread is going to sleep for 1 seconds to wait load_count\n";
+            std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠1秒
+        }
+    }
+
     query->parse = std::move(parse);
     return query;
 }

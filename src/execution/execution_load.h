@@ -81,7 +81,7 @@ public:
 //            std::cout << "load insert complete!" << std::endl;
 //            return nullptr;
 //        });
-        context_->file_name = file_name_;
+        (*context_->load_count)++;
         // 创建一个线程来执行异步任务
         std::thread thread([this]() {
 //            std::cout << "Thread is going to sleep for 10 seconds\n";
@@ -127,6 +127,7 @@ public:
 //            for (int i = 0; i < 10000; ++i) {
 //                std::cout << &"load: " [ i] << std::endl;
 //            }
+            (*context_->load_count)--;
             std::cout << "load insert complete!" << std::endl;
         });
 
