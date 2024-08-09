@@ -28,6 +28,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
 
     bool flag = true;
     if (auto x = std::dynamic_pointer_cast<ast::SelectStmt>(parse)) {
+        exit(1);
         query->tables = std::move(x->tabs);
 
         for (auto &table: query->tables) {
@@ -250,7 +251,8 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
         }
     } else if (auto x = std::dynamic_pointer_cast<ast::LoadStmt>(parse)) {
 
-        exit(1);
+        // 3 min
+
         flag = false;
         std::string fileName = x->file_name;
         std::string tableName = x->tab_name;
