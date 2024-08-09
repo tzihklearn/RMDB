@@ -108,6 +108,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
                 }
                 ++null_col_size;
             } else {
+                exit(1);
                 x->has_ag = true;
 
                 if (!selColumn->col_name.empty()) {

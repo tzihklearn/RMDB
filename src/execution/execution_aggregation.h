@@ -75,7 +75,6 @@ public:
             }
         }
         is_end_ = false;
-        exit(1);
     }
 
     std::unique_ptr<RmRecord> Next() override {
