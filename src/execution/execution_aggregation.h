@@ -75,6 +75,7 @@ public:
             }
         }
         is_end_ = false;
+        exit(1);
     }
 
     std::unique_ptr<RmRecord> Next() override {
@@ -86,7 +87,6 @@ public:
     std::string getType() override { return "AggregationExecutor"; }
 
     void beginTuple() override {
-        exit(1);
         std::map<Key, std::vector<Rid>> group_by_map_t;
         if (!group_by_cols.empty()) {
             std::vector<ColMeta> colMetes;
