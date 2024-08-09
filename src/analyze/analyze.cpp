@@ -28,7 +28,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
 
     bool flag = true;
     if (auto x = std::dynamic_pointer_cast<ast::SelectStmt>(parse)) {
-        exit(1);
+
         query->tables = std::move(x->tabs);
 
         for (auto &table: query->tables) {
@@ -273,6 +273,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
 //                        std::cout << "Thread is going to sleep for 1 seconds to wait load_count\n";
             std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠1秒
         }
+        exit(1);
     }
 
     query->parse = std::move(parse);
