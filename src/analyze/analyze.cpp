@@ -278,9 +278,9 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
         }
         // 2 min 20 s
 //        std::this_thread::sleep_for(std::chrono::seconds(60)); // 休眠60秒
-        if (*context->select_count == 2) {
-            exit(1);
-        }
+//        if (*context->select_count == 2) {
+//            exit(1);
+//        }
     }
 
     query->parse = std::move(parse);
