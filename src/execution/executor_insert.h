@@ -45,7 +45,6 @@ public:
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        return nullptr;
         // 构建记录
         RmRecord rec(fh_->get_file_hdr().record_size);
         for (size_t i = 0; i < values_.size(); i++) {
