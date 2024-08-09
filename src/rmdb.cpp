@@ -75,6 +75,8 @@ void *client_handler(void *sock_fd) {
     js.setSortMerge(true);
     int *load_count = new int;
     *load_count = 0;
+    int *select_count = new int;
+    *select_count = 0;
     while (true) {
         std::cout << "Waiting for request..." << std::endl;
         memset(data_recv, 0, BUFFER_LENGTH);
@@ -116,6 +118,7 @@ void *client_handler(void *sock_fd) {
         Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, &js, data_send, &offset);
         SetTransaction(&txn_id, context);
         context->load_count = load_count;
+        context->select_count = select_count;
 
         // 用于判断是否已经调用了yy_delete_buffer来删除buf
         bool finish_analyze = false;

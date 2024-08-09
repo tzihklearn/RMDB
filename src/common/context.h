@@ -39,4 +39,5 @@ public:
     int *offset_;
     bool ellipsis_;
     int* load_count;
+    int* select_count;
 };
