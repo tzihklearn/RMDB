@@ -48,6 +48,7 @@ public:
         if(context_!= nullptr){
             context_->lock_mgr_->lock_shared_on_table(context_->txn_, fh_->GetFd());
         }
+        exit(1);
     }
 
     bool is_fed_cond(const std::vector<ColMeta> &rec_cols, const Condition &cond, const RmRecord *target) {
