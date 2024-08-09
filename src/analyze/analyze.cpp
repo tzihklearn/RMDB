@@ -252,6 +252,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
     } else if (auto x = std::dynamic_pointer_cast<ast::LoadStmt>(parse)) {
 
         // 3 min
+        exit(1);
 
         flag = false;
         std::string fileName = x->file_name;
@@ -273,7 +274,8 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
 //                        std::cout << "Thread is going to sleep for 1 seconds to wait load_count\n";
             std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠1秒
         }
-        exit(1);
+        // 2 min 20 s
+//        exit(1);
     }
 
     query->parse = std::move(parse);
