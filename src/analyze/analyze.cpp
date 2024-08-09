@@ -249,6 +249,8 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
             }
         }
     } else if (auto x = std::dynamic_pointer_cast<ast::LoadStmt>(parse)) {
+
+        exit(1);
         flag = false;
         std::string fileName = x->file_name;
         std::string tableName = x->tab_name;
