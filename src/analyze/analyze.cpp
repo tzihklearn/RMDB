@@ -276,7 +276,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
 //                        std::cout << "Thread is going to sleep for 1 seconds to wait load_count\n";
             std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠1秒
         }
-//        exit(1);
+        exit(1);
         // 2 min 20 s
 //        std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠60秒
 //        if (*context->select_count == 2) {
