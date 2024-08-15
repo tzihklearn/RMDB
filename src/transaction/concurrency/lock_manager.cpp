@@ -475,7 +475,6 @@ bool LockManager::unlock(Transaction *txn, LockDataId lock_data_id) {
 
 // 等待-死锁策略实现
 void LockManager::wait_die(Transaction *txn, LockRequestQueue &request_queue, std::unique_lock<std::mutex> &ul) {
-    exit(1);
     while (true) {
         bool should_wait = false;
         for (const auto &existing_req: request_queue.request_queue_) {
