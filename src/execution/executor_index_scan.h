@@ -78,7 +78,6 @@ public:
 
         is_end_ = false;
         is_sort_ = is_sort;
-        exit(1);
         // 申请表级共享锁（S）
         if(context_!= nullptr){
             context_->lock_mgr_->lock_shared_on_table(context_->txn_, fh_->GetFd());
