@@ -282,6 +282,10 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
 //        if (*context->select_count == 2) {
 //            exit(1);
 //        }
+    } else {
+        if (*(context->load_count) != 0) {
+            exit(1);
+        }
     }
 
     query->parse = std::move(parse);
