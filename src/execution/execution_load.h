@@ -127,7 +127,7 @@ public:
 //            for (int i = 0; i < 10000; ++i) {
 //                std::cout << &"load: " [ i] << std::endl;
 //            }
-            (*context_->load_count)--;
+            (*context->load_count)--;
             std::cout << "load insert complete!" << std::endl;
         });
 
