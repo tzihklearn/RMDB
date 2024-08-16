@@ -24,9 +24,9 @@ class Context {
 public:
     Context(LockManager *lock_mgr, LogManager *log_mgr,
             Transaction *txn,
-            JoinStrategy *js, char *data_send = nullptr, int *offset = &const_offset)
+            JoinStrategy *js, char *data_send = nullptr, int *offset = &const_offset, bool write_out = true)
             : lock_mgr_(lock_mgr), log_mgr_(log_mgr), txn_(txn), js_(js),
-              data_send_(data_send), offset_(offset) {
+              data_send_(data_send), offset_(offset), write_out_(write_out) {
         ellipsis_ = false;
     }
 
@@ -40,6 +40,7 @@ public:
     bool ellipsis_;
     int* load_count;
     int* select_count;
+    bool write_out_;
     // 线程容器
     std::vector<std::thread> *threads;
 };

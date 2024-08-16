@@ -144,7 +144,12 @@ void SmManager::close_db() {
 void SmManager::show_tables(Context *context) {
     try {
         std::fstream outfile;
-        outfile.open("output.txt", std::ios::out | std::ios::app);
+        if (context->write_out_){
+            outfile.open("output.txt", std::ios::out | std::ios::app);
+        } else {
+            outfile.open("/dev/null", std::ios::out | std::ios::app);
+            outfile.rdbuf()->pubsetbuf(nullptr, 0);  // 禁用缓冲
+        }
         outfile << "| Tables |\n";
         RecordPrinter printer(1);
         printer.print_separator(context);

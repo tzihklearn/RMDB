@@ -486,9 +486,9 @@ setClause:
     ;
 
 artExpr:
-	col art_op value
+	col value
     {
-    	$$ = std::make_shared<ArtExpr>($1, $2, $3);
+    	$$ = std::make_shared<ArtExpr>($1, AGG_OP_ADD, $2);
     }
     ;
 

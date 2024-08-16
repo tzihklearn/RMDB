@@ -30,7 +30,7 @@ See the Mulan PSL v2 for more details. */
 #define MAX_CONN_LIMIT 8
 
 static bool should_exit = false;
-
+static bool write_output_file = true;
 
 pthread_mutex_t *buffer_mutex;
 pthread_mutex_t *sockfd_mutex;
@@ -108,14 +108,23 @@ void *client_handler(void *sock_fd) {
 //            crash_outfile.close();
             exit(1);
         }
-
+        // 关闭文件输出
+        if (strcmp(data_recv, "set output_file off") == 0) {
+            write_output_file = false;
+            // future TODO: 格式化 sql_handler.result, 传给客户端
+            // send result with fixed format, use protobuf in the future
+            if (write(fd, data_send, offset + 1) == -1) {
+                break;
+            }
+            continue;
+        }
         std::cout << "Read from client " << fd << ": " << data_recv << std::endl;
 
         memset(data_send, '\0', BUFFER_LENGTH);
         offset = 0;
 
         // 开启事务，初始化系统所需的上下文信息（包括事务对象指针、锁管理器指针、日志管理器指针、存放结果的buffer、记录结果长度的变量）
-        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, &js, data_send, &offset);
+        Context *context = new Context(lock_manager.get(), log_manager.get(), nullptr, &js, data_send, &offset, write_output_file);
         SetTransaction(&txn_id, context);
         context->load_count = load_count;
         context->select_count = select_count;
@@ -153,7 +162,12 @@ void *client_handler(void *sock_fd) {
 
                     try {
                         std::fstream outfile;
-                        outfile.open("output.txt", std::ios::out | std::ios::app);
+                        if (context->write_out_){
+                            outfile.open("output.txt", std::ios::out | std::ios::app);
+                        } else {
+                            outfile.open("/dev/null", std::ios::out | std::ios::app);
+                            outfile.rdbuf()->pubsetbuf(nullptr, 0);  // 禁用缓冲
+                        }
                         outfile << str;
                         outfile.close();
                     } catch (std::exception &e) {
@@ -171,7 +185,12 @@ void *client_handler(void *sock_fd) {
                     // 将报错信息写入output.txt
                     try {
                         std::fstream outfile;
-                        outfile.open("output.txt",std::ios::out | std::ios::app);
+                        if (context->write_out_){
+                            outfile.open("output.txt", std::ios::out | std::ios::app);
+                        } else {
+                            outfile.open("/dev/null", std::ios::out | std::ios::app);
+                            outfile.rdbuf()->pubsetbuf(nullptr, 0);  // 禁用缓冲
+                        }
                         outfile << "failure\n";
                         outfile.close();
                     } catch (std::exception &e) {
@@ -183,7 +202,12 @@ void *client_handler(void *sock_fd) {
             // 将报错信息写入output.txt
             try {
                 std::fstream outfile;
-                outfile.open("output.txt",std::ios::out | std::ios::app);
+                if (context->write_out_){
+                    outfile.open("output.txt", std::ios::out | std::ios::app);
+                } else {
+                    outfile.open("/dev/null", std::ios::out | std::ios::app);
+                    outfile.rdbuf()->pubsetbuf(nullptr, 0);  // 禁用缓冲
+                }
                 outfile << "failure\n";
                 outfile.close();
             } catch (std::exception &e) {

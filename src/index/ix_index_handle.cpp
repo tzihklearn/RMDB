@@ -20,18 +20,18 @@ See the Mulan PSL v2 for more details. */
  * @note 返回key index（同时也是rid index），作为slot no
  */
 int IxNodeHandle::lower_bound(const char *target) const {
-    // 查找当前节点中第一个大于等于target的key，并返回key的位置给上层
+    int left = 0;
+    int right = page_hdr->num_key;
 
-    // 提示: 可以采用多种查找方式，如顺序遍历、二分查找等；使用ix_compare()函数进行比较
-
-    // 顺序查找
-    int key_idx = 0;
-    for (; key_idx < page_hdr->num_key; key_idx++) {
-        if (ix_compare(target, get_key(key_idx), file_hdr->col_types_, file_hdr->col_lens_) <= 0) {
-            break;
+    while (left < right) {
+        int mid = left + (right - left) / 2;
+        if (ix_compare(get_key(mid), target, file_hdr->col_types_, file_hdr->col_lens_) < 0) {
+            left = mid + 1;
+        } else {
+            right = mid;
         }
     }
-    return key_idx;
+    return left;
 }
 
 /**
@@ -41,17 +41,18 @@ int IxNodeHandle::lower_bound(const char *target) const {
  * @note 注意此处的范围从1开始
  */
 int IxNodeHandle::upper_bound(const char *target) const {
-    // 查找当前节点中第一个大于target的key，并返回key的位置给上层
+    int left = 1;  // 注意此处从1开始
+    int right = page_hdr->num_key;
 
-    // 提示: 可以采用多种查找方式：顺序遍历、二分查找等；使用ix_compare()函数进行比较
-    // 顺序查找
-    int key_idx = 1;
-    for (; key_idx < page_hdr->num_key; key_idx++) {
-        if (ix_compare(target, get_key(key_idx), file_hdr->col_types_, file_hdr->col_lens_) < 0) {
-            break;
+    while (left < right) {
+        int mid = left + (right - left) / 2;
+        if (ix_compare(get_key(mid), target, file_hdr->col_types_, file_hdr->col_lens_) <= 0) {
+            left = mid + 1;
+        } else {
+            right = mid;
         }
     }
-    return key_idx;
+    return left;
 }
 
 /**

@@ -152,7 +152,12 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
     std::fstream outfile;
     try {
         // 第一次是归并连接时，第二次
-        outfile.open("output.txt", std::ios::out | std::ios::app);
+        if (context->write_out_){
+            outfile.open("output.txt", std::ios::out | std::ios::app);
+        } else {
+            outfile.open("/dev/null", std::ios::out | std::ios::app);
+            outfile.rdbuf()->pubsetbuf(nullptr, 0);  // 禁用缓冲
+        }
         outfile << "|";
         for (const auto &caption: captions) {
             outfile << " " << caption << " |";
