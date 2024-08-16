@@ -119,6 +119,7 @@ void *client_handler(void *sock_fd) {
         SetTransaction(&txn_id, context);
         context->load_count = load_count;
         context->select_count = select_count;
+        context->threads = &threads;
 
         // 用于判断是否已经调用了yy_delete_buffer来删除buf
         bool finish_analyze = false;

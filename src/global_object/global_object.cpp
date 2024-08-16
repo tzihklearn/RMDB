@@ -18,3 +18,4 @@ std::unique_ptr<LogManager> log_manager = std::make_unique<LogManager>(disk_mana
 std::unique_ptr<RecoveryManager> recovery = std::make_unique<RecoveryManager>(disk_manager.get(), buffer_pool_manager.get(), sm_manager.get(), log_manager.get());
 std::unique_ptr<Portal> portal = std::make_unique<Portal>(sm_manager.get());
 std::unique_ptr<Analyze> analyze = std::make_unique<Analyze>(sm_manager.get());
+std::vector<std::thread> threads = std::vector<std::thread>();

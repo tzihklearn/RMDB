@@ -277,15 +277,12 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
             std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠1秒
         }
 //        exit(1);
+        int a  = 1;
         // 2 min 20 s
 //        std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠60秒
 //        if (*context->select_count == 2) {
 //            exit(1);
 //        }
-    } else {
-        if (*(context->load_count) != 0) {
-            exit(1);
-        }
     }
 
     query->parse = std::move(parse);

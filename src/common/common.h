@@ -95,6 +95,23 @@ struct Value {
         }
     }
 
+    void cover_raw(int len) {
+        assert(raw != nullptr);
+        if (type == TYPE_INT) {
+            assert(len == sizeof(int));
+            *(int *)(raw->data) = int_val;
+        } else if (type == TYPE_FLOAT) {
+            assert(len == sizeof(float));
+            *(float *)(raw->data) = float_val;
+        } else if (type == TYPE_STRING) {
+            if (len < (int)str_val.size()) {
+                throw StringOverflowError();
+            }
+            memset(raw->data, 0, len);
+            memcpy(raw->data, str_val.c_str(), str_val.size());
+        }
+    }
+
     // 重载value的比较运算符 > < == != >= <=
     bool operator>(const Value &rhs) const {
         if (is_null) {

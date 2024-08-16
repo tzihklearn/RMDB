@@ -462,3 +462,69 @@ void RmFileHandle::allocpage(Rid& rid){
         buffer_pool_manager_->unpin_page(rm_page_hd.page->get_page_id(), false);
     }
 }
+
+Rid RmFileHandle::insert_record_for_load_data(char* buf, RmPageHandle &page_handle){
+//    //1
+//    page_id_t ret_page_no = page_handle.page->get_page_id().page_no;
+////    Bitmap::first_bit(false, page_hdl.bitmap, record_nums, *page_hdl.deleted);
+////    int free_slot_no = Bitmap::first_bit(0, page_handle.bitmap, file_hdr_.num_records_per_page);
+//    int free_slot_no = Bitmap::first_bit(false, page_handle.bitmap, file_hdr_.num_records_per_page, *page_handle.deleted);
+//
+//    char* des = page_handle.get_slot(free_slot_no);
+//
+//    memcpy(des,  buf, file_hdr_.record_size);
+//    Bitmap::set(page_handle.bitmap, free_slot_no);
+////    page_handle.page_hdr->num_records++;
+//
+////    if(page_handle.page_hdr->num_records == get_file_hdr().num_records_per_page){
+////        //unpin并切换page
+////        free_pageno_set.erase(ret_page_no);
+////        buffer_pool_manager_->unpin_page(page_handle.page->get_page_id(), true);
+////        page_handle = create_page_handle();
+////    }
+//    if (++page_handle.page_hdr->num_records == file_hdr_.num_records_per_page) {
+////        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+//        file_hdr_.first_free_page_no = RM_NO_PAGE;
+//    }
+//    buffer_pool_manager_->unpin_page(page_handle.page->get_page_id(), true);
+//
+//    return {ret_page_no, free_slot_no};
+    std::shared_lock<std::shared_mutex> lock{latch_};
+    // 1.获取当前未满的page handle
+    RmPageHandle page_hdl = create_page_handle();
+
+    // 在page_hdl中找到空闲slot位置
+    int record_size = file_hdr_.record_size;
+    int record_nums = file_hdr_.num_records_per_page;
+    int slot_no = Bitmap::first_bit(false, page_hdl.bitmap, record_nums, *page_hdl.deleted);
+    if (slot_no == record_nums) {
+        buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
+        throw InvalidSlotNoError(slot_no, record_nums);
+    }
+
+//    // 对record加X锁
+//    if (context != nullptr) {
+//        auto rid = Rid{.page_no = page_hdl.page->get_page_id().page_no, .slot_no = slot_no};
+//        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+//    }
+
+    // 将buf复制到空闲slot位置
+    char *slot_ptr = page_hdl.get_slot(slot_no);
+    std::memcpy(slot_ptr, buf, record_size);
+    Bitmap::set(page_hdl.bitmap, slot_no);
+
+    // 更新page_handle.page_hdr的数据结构
+//    if (++page_hdl.page_hdr->num_records == record_nums) {
+//        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+//    }
+    if (++page_hdl.page_hdr->num_records == record_nums) {
+//        file_hdr_.first_free_page_no = page_hdl.page_hdr->next_free_page_no;
+        file_hdr_.first_free_page_no = RM_NO_PAGE;
+    }
+
+//    Rid rid = Rid{page_hdl.page->get_page_id().page_no, slot_no};
+    buffer_pool_manager_->unpin_page(page_hdl.page->get_page_id(), true);
+
+    // 返回新插入的record的rid
+    return Rid{page_hdl.page->get_page_id().page_no, slot_no};
+}

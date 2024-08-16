@@ -26,6 +26,7 @@ extern std::unique_ptr<LogManager> log_manager;
 extern std::unique_ptr<RecoveryManager> recovery;
 extern std::unique_ptr<Portal> portal;
 extern std::unique_ptr<Analyze> analyze;
+extern std::vector<std::thread> threads;
 
 #endif //RMDB_GLOBAL_OBJECT_H
 

@@ -84,66 +84,93 @@ public:
         (*context_->load_count)++;
         // 创建一个线程来执行异步任务
         std::thread thread([this]() {
+            // 获取当前时间
+            auto start_time = time(nullptr);
 //            std::cout << "Thread is going to sleep for 10 seconds\n";
 //            std::this_thread::sleep_for(std::chrono::seconds(3)); // 休眠10秒
             auto file_name = file_name_;
             auto table_name = table_name_;
-            auto my_line = line_;
             auto context = context_;
-            auto sm_manager = sm_manager_;
-            auto cols = tab_.cols;
-            auto indexes = tab_.indexes;
-            auto fh = fh_;
-            std::vector<ColType> expectedTypes;
-            for (auto & col : cols) {
-                expectedTypes.push_back(col.type);
-            }
-            // 异步任务的内容
-            std::ifstream file(file_name);
-            if (!file.is_open()) {
-                char buffer[1024];
-                // 使用getcwd获取当前工作目录
-                if (getcwd(buffer, sizeof(buffer)) != nullptr) {
-                    // 打印当前工作目录的路径
-                    std::cout << "当前工作目录是: " << buffer << std::endl;
-                } else {
-                    std::cerr << "获取当前工作目录失败" << std::endl;
-                }
-                // 处理文件打开失败的情况
-                throw InternalError("Cannot open file: " + file_name);
-            }
-            // 忽略第一行
-            std::string header;
-            std::getline(file, header);
+            sm_manager_->load_csv_itermodel(file_name, table_name);
+//            auto my_line = line_;
 
-            std::string line;
-            while (std::getline(file, line)) {
-                std::vector<Value> values = parseCSVLine(line, expectedTypes);
-                my_line = line;
-
-                // 插入数据到表中
-                insertIntoTable(table_name, values, sm_manager, context, cols, fh, indexes);
-            }
-//            for (int i = 0; i < 10000; ++i) {
-//                std::cout << &"load: " [ i] << std::endl;
+//            auto sm_manager = sm_manager_;
+//            auto cols = tab_.cols;
+//            auto indexes = tab_.indexes;
+//            auto fh = fh_;
+//            std::vector<ColType> expectedTypes;
+//            for (auto & col : cols) {
+//                expectedTypes.push_back(col.type);
 //            }
+//            // 异步任务的内容
+//            std::ifstream file(file_name);
+//            if (!file.is_open()) {
+//                char buffer[1024];
+//                // 使用getcwd获取当前工作目录
+//                if (getcwd(buffer, sizeof(buffer)) != nullptr) {
+//                    // 打印当前工作目录的路径
+//                    std::cout << "当前工作目录是: " << buffer << std::endl;
+//                } else {
+//                    std::cerr << "获取当前工作目录失败" << std::endl;
+//                }
+//                // 处理文件打开失败的情况
+//                throw InternalError("Cannot open file: " + file_name);
+//            }
+//            // 忽略第一行
+//            std::string header;
+//            std::getline(file, header);
+//
+//            std::string line;
+//            while (std::getline(file, line)) {
+//                std::vector<Value> values = parseCSVLine(line, expectedTypes);
+//                my_line = line;
+//
+//                // 插入数据到表中
+//                insertIntoTable(table_name, values, sm_manager, context, cols, fh, indexes);
+//            }
+////            for (int i = 0; i < 10000; ++i) {
+////                std::cout << &"load: " [ i] << std::endl;
+////            }
+//            file.close();
             (*context->load_count)--;
-            std::cout << "load insert complete!" << std::endl;
+            std::cout << "load " << table_name << " insert complete!" << std::endl;
+
+            // 获取当前时间
+            auto end_time = time(nullptr);
+            std::cout << "load using " << end_time - start_time << " seconds\n";
         });
 
         // 等待线程启动，但立即返回
         thread.detach();
+        context_->threads->emplace_back(std::move(thread));
         std::cout << "Thread is going to sleep for 1 seconds\n";
         std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠1秒
         std::cout << "load ok!" << std::endl;
 
         // 返回一个空的std::unique_ptr，因为实际的返回值将在异步任务中处理
         return nullptr;
+//        create index warehouse(w_id);
+//        create index district(d_w_id, d_id);
+//        create index customer(c_w_id, c_d_id, c_id);
+//        create index new_orders(no_w_id, no_d_id, no_o_id);
+//        create index orders(o_w_id, o_d_id, o_id);
+//        create index order_line(ol_w_id, ol_d_id, ol_o_id, ol_number);
+//        create index item(i_id);
+//        create index stock(s_w_id, s_i_id);
+
+//        load ../../../src/test/performance_test/table_data/test_work/district_test.csv into district;
+//        load ../../../src/test/performance_test/table_data/test_work/customer_test.csv into customer;
+//        load ../../../src/test/performance_test/table_data/test_work/history_test.csv into history;
+//        load ../../../src/test/performance_test/table_data/test_work/new_orders_test.csv into new_orders;
+//        load ../../../src/test/performance_test/table_data/test_work/orders_test.csv into orders;
+//        load ../../../src/test/performance_test/table_data/test_work/order_line_test.csv into order_line;
+//        load ../../../src/test/performance_test/table_data/test_work/item_test.csv into item;
+//        load ../../../src/test/performance_test/table_data/test_work/stock_test.csv into stock;
     }
 
 
     // 解析CSV行，返回值列表
-    std::vector<Value> parseCSVLine(const std::string &line, const std::vector<ColType> &expectedTypes) {
+    static std::vector<Value> parseCSVLine(const std::string &line, const std::vector<ColType> &expectedTypes) {
         std::vector<Value> values;
         std::stringstream ss(line);
         std::string item;
@@ -175,10 +202,10 @@ public:
             values.push_back(val);
             columnIndex++;
 
-            ++i;
-            if (i >= 100) {
-                break;
-            }
+//            ++i;
+//            if (i >= 100) {
+//                break;
+//            }
         }
 
         if (columnIndex != expectedTypes.size()) {

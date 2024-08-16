@@ -417,3 +417,129 @@ void SmManager::show_index(std::string tab_name, Context *context) {
         std::cerr << "sm_manager show_index() only pingcas can do" << e.what() << std::endl;
     }
 }
+
+void  SmManager::load_csv_itermodel(const std::string& file_name, const std::string& table_name){
+    //begin
+    std::ifstream ifs;
+    ifs.open(file_name);
+    std::string s;
+    TabMeta &tab_meta = this->db_.tabs_.at(table_name);
+
+    bool tab_name_enable = false;
+    Rid rid_{-1,-1};
+    RmFileHandle* fh_ = this->fhs_.at(table_name).get();
+    RmRecord buffer_load_record(fh_->get_file_hdr().record_size);
+
+//    RmPageHandle page_buffer = fh_ -> create_page_handle();//缓冲page
+    RmPageHandle page_buffer = fh_ -> create_new_page_handle();//缓冲page
+    //iter
+
+    //初始化row
+    std::vector<Value> row(tab_meta.cols.size());
+    for(size_t i=0;i<tab_meta.cols.size();++i) {
+        if(tab_meta.cols[i].type == ColType::TYPE_INT) {
+            row[i].set_int(0);
+        }
+        else if(tab_meta.cols[i].type == ColType::TYPE_FLOAT) {
+            row[i].set_float(0);
+        }
+        else if(tab_meta.cols[i].type == ColType::TYPE_STRING) {
+            row[i].set_str("");
+        }
+        else {
+            assert(0);
+        }
+        row[i].init_raw(tab_meta.cols[i].len);
+    }
+    int line_num = 0;
+    while(std::getline(ifs, s)){
+        ++line_num;
+        std::stringstream ss(s);
+        std::string field;
+        if(tab_name_enable == false){
+            tab_name_enable = true;
+            continue;
+        }
+        int ind = 0;
+        while (std::getline(ss, field, ',')) {
+            //parse string to Value
+            if(row[ind].type == ColType::TYPE_INT){
+                row[ind].set_int(std::stoi(field));
+            }
+            else if(row[ind].type == ColType::TYPE_FLOAT){
+                row[ind].set_float(std::stof(field));
+            }
+            else if(row[ind].type == ColType::TYPE_STRING){
+                row[ind].set_str(field);
+            }
+            else{
+                assert(0);
+            }
+            row[ind].cover_raw(tab_meta.cols[ind].len);
+            ind++;
+        }
+        load_pre_insert(fh_, row, tab_meta, buffer_load_record, nullptr);
+
+        //先插然后判断是否需要切换buffer
+        rid_ = fh_->insert_record_for_load_data(buffer_load_record.data, page_buffer);
+        insert_into_index(tab_meta, buffer_load_record, nullptr, rid_);
+    }
+    std::cout << "all line num is: " << line_num << std::endl;
+//    fh_->buffer_pool_manager_->unpin_page(page_buffer.page->get_page_id(), true);
+    ifs.close();
+}
+
+void SmManager::load_pre_insert(RmFileHandle* fh_, std::vector<Value>& values_, TabMeta& tab_, RmRecord& rec, Context* context_) {
+    for (size_t i = 0; i < values_.size(); ++i) {
+        auto &col = tab_.cols[i];
+        auto &val = values_[i];
+        if (col.type != val.type) {
+            assert(0);
+        }
+        // if(col.type == TYPE_DATETIME) {
+        //     if(!SmManager::check_datetime_(val.datetime_val)){
+        //         throw InvalidValueError(val.datetime_val);
+        //     }
+        // }
+        memcpy(rec.data + col.offset, val.raw->data, col.len);
+    }
+    // for(size_t i = 0; i < tab_.indexes.size(); ++i) {
+    //     auto& index = tab_.indexes[i];
+    //     auto ih = ihs_.at(get_ix_manager()->get_index_name(tab_.name, index.cols)).get();
+    //     #ifndef ENABLE_LOCK_CRABBING
+    //         std::lock_guard<std::mutex> lg(ih->root_latch_);
+    //      #endif
+    //     char* key = new char[index.col_tot_len];
+    //     int offset = 0;
+    //     for(size_t i = 0; i < (size_t)index.col_num; ++i) {
+    //         memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
+    //         offset += index.cols[i].len;
+    //     }
+    //     bool is_failed = ih->binary_search(key, context_).page_no != -1;
+    //     if(is_failed){
+    //         delete[] key;
+    //         throw IndexInsertDuplicatedError();
+    //     }
+    //     delete[] key;
+    // }
+}
+
+void SmManager::insert_into_index(TabMeta& tab_, RmRecord& rec, Context* context_, Rid& rid_){
+    // Insert into index
+    for(size_t i = 0; i < tab_.indexes.size(); ++i) {
+        auto& index = tab_.indexes[i];
+        auto ih = ihs_.at(get_ix_manager()->get_index_name(tab_.name, index.cols)).get();
+#ifndef ENABLE_LOCK_CRABBING
+//        std::lock_guard<std::mutex> lg(ih->root_latch_);
+#endif
+        char* key = new char[index.col_tot_len];
+        int offset = 0;
+        for(size_t i = 0; i < (size_t)index.col_num; ++i) {
+            memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
+            offset += index.cols[i].len;
+        }
+        ih->insert_entry(key, rid_, context_==nullptr? nullptr:context_->txn_);
+        delete[] key;
+    }
+}
+

@@ -171,6 +171,15 @@ public:
             }
             case PORTAL_LOAD: {
                 portal->root->Next();
+                // 获取当前时间
+                auto start_time = time(nullptr);
+//                if (auto x = std::dynamic_pointer_cast<LoadPlan>(portal->plan)) {
+//                    sm_manager_->load_csv_itermodel(x->getFileName(), x->getTableName());
+//                }
+                // 获取当前时间
+                auto end_time = time(nullptr);
+//                std::cout << "load using " << end_time - start_time << " seconds\n";
+                std::cout << "PORTAL_LOAD complete!" << std::endl;
                 break;
             }
             default: {

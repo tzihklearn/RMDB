@@ -95,4 +95,11 @@ public:
     void drop_index(const std::string &tab_name, const std::vector<std::string> &col_names, Context *context);
 
     void drop_index(const std::string &tab_name, const std::vector<ColMeta> &col_names, Context *context);
+
+    void load_csv_itermodel(const std::string& file_name, const std::string& table_name);
+
+    void load_pre_insert(RmFileHandle* fh_, std::vector<Value>& values_, TabMeta& tab_, RmRecord& rec, Context* context_);
+
+    void insert_into_index(TabMeta& tab_, RmRecord& rec, Context* context_, Rid& rid_);
+
 };

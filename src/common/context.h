@@ -40,4 +40,6 @@ public:
     bool ellipsis_;
     int* load_count;
     int* select_count;
+    // 线程容器
+    std::vector<std::thread> *threads;
 };

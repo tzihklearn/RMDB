@@ -94,6 +94,8 @@ public:
 
     void allocpage(Rid& rid);
 
+    Rid insert_record_for_load_data(char* buf, RmPageHandle &page_handle);
+
 private:
     RmPageHandle create_page_handle();
 
