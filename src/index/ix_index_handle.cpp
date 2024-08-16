@@ -442,6 +442,69 @@ page_id_t IxIndexHandle::insert_entry(const char *ins_key, const Rid &ins_value,
     return leaf_page_id;
 }
 
+page_id_t IxIndexHandle::insert_entry_load(const char *ins_key, const Rid &ins_value, Transaction *txn) {
+    // 加锁以确保操作的原子性
+    std::scoped_lock tree_lock{root_latch_};
+
+    // 1. 查找ins_key值应该插入到哪个叶子节点
+    page_id_t child_page_no = file_hdr_->last_leaf_;
+    auto cur_hdl = fetch_node(child_page_no);
+    std::pair<IxNodeHandle *, bool> leaf_page_result = {cur_hdl, false};
+
+//    std::pair<IxNodeHandle *, bool> leaf_page_result = find_leaf_page(ins_key, Operation::INSERT, txn);
+
+    // 找不到应该插入哪个叶子节点
+    if (!leaf_page_result.first) {
+        throw IndexEntryNotFoundError();
+    }
+
+    // 获取叶子节点句柄
+    IxNodeHandle *leaf_node_handle = leaf_page_result.first;
+
+    // 检查是否存在重复的键
+    if (leaf_node_handle->is_exist_key(ins_key)) {
+        throw InternalError("Non-unique index!");
+    }
+
+    // 获取当前叶子节点的大小
+    int current_size = leaf_node_handle->get_size();
+
+    // 2. 在该叶子节点中插入键值对
+    if (leaf_node_handle->insert(ins_key, ins_value) == current_size) {
+        // 如果插入后键值对数量不变，解除页面固定并返回-1
+        buffer_pool_manager_->unpin_page(leaf_node_handle->get_page_id(), false);
+        return -1;
+    } else if (leaf_node_handle->get_size() == leaf_node_handle->get_max_size()) {
+        // 3. 如果结点已满，分裂结点，并把新结点的相关信息插入父节点
+        IxNodeHandle *new_leaf_node = split(leaf_node_handle);
+
+        // 如果该叶子是最后一片叶子，更新文件头部的最后叶子节点页号
+        if (leaf_node_handle->get_page_no() == file_hdr_->last_leaf_) {
+            file_hdr_->last_leaf_ = new_leaf_node->get_page_no();
+        }
+
+        // 将新叶子节点的第一个键插入到父节点
+        insert_into_parent(leaf_node_handle, new_leaf_node->get_key(0), new_leaf_node, txn);
+
+        // 解除页面固定
+        buffer_pool_manager_->unpin_page(leaf_node_handle->get_page_id(), true);
+
+        // 释放新叶子节点句柄
+        delete new_leaf_node;
+    }
+
+    // 解除页面固定
+    buffer_pool_manager_->unpin_page(leaf_node_handle->get_page_id(), false);
+
+    // 获取叶子节点的页面编号
+    auto leaf_page_id = leaf_node_handle->get_page_no();
+
+    // 释放叶子节点句柄
+    delete leaf_node_handle;
+
+    return leaf_page_id;
+}
+
 
 /**
  * @brief 用于删除B+树中含有指定key的键值对

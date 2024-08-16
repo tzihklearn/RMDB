@@ -538,7 +538,7 @@ void SmManager::insert_into_index(TabMeta& tab_, RmRecord& rec, Context* context
             memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
             offset += index.cols[i].len;
         }
-        ih->insert_entry(key, rid_, context_==nullptr? nullptr:context_->txn_);
+        ih->insert_entry_load(key, rid_, context_==nullptr? nullptr:context_->txn_);
         delete[] key;
     }
 }

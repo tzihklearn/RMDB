@@ -262,6 +262,8 @@ public:
     // for insert
     page_id_t insert_entry(const char *key, const Rid &value, Transaction *transaction);
 
+    page_id_t insert_entry_load(const char *key, const Rid &value, Transaction *transaction);
+
     IxNodeHandle *split(IxNodeHandle *node);
 
     void insert_into_parent(IxNodeHandle *old_node, const char *key, IxNodeHandle *new_node, Transaction *transaction);
