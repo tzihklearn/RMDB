@@ -531,20 +531,37 @@ void SmManager::load_pre_insert(RmFileHandle* fh_, std::vector<Value>& values_, 
 
 void SmManager::insert_into_index(TabMeta& tab_, RmRecord& rec, Context* context_, Rid& rid_){
     // Insert into index
-    for(size_t i = 0; i < tab_.indexes.size(); ++i) {
-        auto& index = tab_.indexes[i];
-        auto ih = ihs_.at(get_ix_manager()->get_index_name(tab_.name, index.cols)).get();
-#ifndef ENABLE_LOCK_CRABBING
-//        std::lock_guard<std::mutex> lg(ih->root_latch_);
-#endif
-        char* key = new char[index.col_tot_len];
+//    for(size_t i = 0; i < tab_.indexes.size(); ++i) {
+//        auto& index = tab_.indexes[i];
+//        auto ih = ihs_.at(get_ix_manager()->get_index_name(tab_.name, index.cols)).get();
+//        char* key = new char[index.col_tot_len];
+//        int offset = 0;
+//        for(size_t i = 0; i < (size_t)index.col_num; ++i) {
+//            memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
+//            offset += index.cols[i].len;
+//        }
+//        ih->insert_entry_load(key, rid_, context_==nullptr? nullptr:context_->txn_);
+//        delete[] key;
+//    }
+    // 插入索引条目
+    auto indexes = tab_.indexes;
+    auto table_name = tab_.name;
+    for (auto &index: indexes) {
+        auto ih = ihs_.at(
+                get_ix_manager()->get_index_name(table_name, index.cols)).get();
+
+        std::vector<char> key(index.col_tot_len);
         int offset = 0;
-        for(size_t i = 0; i < (size_t)index.col_num; ++i) {
-            memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
+        for (size_t i = 0; i < index.col_num; ++i) {
+            memcpy(key.data() + offset, rec.data + index.cols[i].offset, index.cols[i].len);
             offset += index.cols[i].len;
         }
-        ih->insert_entry_load(key, rid_, context_==nullptr? nullptr:context_->txn_);
-        delete[] key;
+
+        try {
+            ih->insert_entry_load(key.data(), rid_, context_==nullptr? nullptr:context_->txn_);
+        } catch (InternalError &error) {
+            throw InternalError("Non-unique index!");
+        }
     }
 }
 
