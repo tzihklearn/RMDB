@@ -423,76 +423,89 @@ void SmManager::show_index(std::string tab_name, Context *context) {
     }
 }
 
-void  SmManager::load_csv_itermodel(const std::string& file_name, const std::string& table_name){
-    //begin
-    std::ifstream ifs;
-    ifs.open(file_name);
-    std::string s;
+void SmManager::load_csv_itermodel(const std::string& file_name, const std::string& table_name) {
+    std::ifstream ifs(file_name);
+    if (!ifs.is_open()) {
+        std::cerr << "Failed to open file: " << file_name << std::endl;
+        return;
+    }
+
     TabMeta &tab_meta = this->db_.tabs_.at(table_name);
 
     bool tab_name_enable = false;
-    Rid rid_{-1,-1};
+    Rid rid_{-1, -1};
     RmFileHandle* fh_ = this->fhs_.at(table_name).get();
     RmRecord buffer_load_record(fh_->get_file_hdr().record_size);
+    RmPageHandle page_buffer = fh_->create_new_page_handle();
 
-//    RmPageHandle page_buffer = fh_ -> create_page_handle();//缓冲page
-    RmPageHandle page_buffer = fh_ -> create_new_page_handle();//缓冲page
-    //iter
-
-    //初始化row
     std::vector<Value> row(tab_meta.cols.size());
-    for(size_t i=0;i<tab_meta.cols.size();++i) {
-        if(tab_meta.cols[i].type == ColType::TYPE_INT) {
+    std::vector<size_t> col_lens(tab_meta.cols.size());
+
+    // Initialize row and column lengths
+    for (size_t i = 0; i < tab_meta.cols.size(); ++i) {
+        const ColType& col_type = tab_meta.cols[i].type;
+        col_lens[i] = tab_meta.cols[i].len;
+
+        if (col_type == ColType::TYPE_INT) {
             row[i].set_int(0);
-        }
-        else if(tab_meta.cols[i].type == ColType::TYPE_FLOAT) {
-            row[i].set_float(0);
-        }
-        else if(tab_meta.cols[i].type == ColType::TYPE_STRING) {
+        } else if (col_type == ColType::TYPE_FLOAT) {
+            row[i].set_float(0.0f);
+        } else if (col_type == ColType::TYPE_STRING) {
             row[i].set_str("");
-        }
-        else {
+        } else {
             assert(0);
         }
-        row[i].init_raw(tab_meta.cols[i].len);
+        row[i].init_raw(col_lens[i]);
     }
+
     int line_num = 0;
-    while(std::getline(ifs, s)){
+    std::string s;
+
+    while (std::getline(ifs, s)) {
         ++line_num;
-        std::stringstream ss(s);
-        std::string field;
-        if(tab_name_enable == false){
+        if (!tab_name_enable) {
             tab_name_enable = true;
             continue;
         }
+
+        std::stringstream ss(s);
+        std::string field;
         int ind = 0;
-        while (std::getline(ss, field, ',')) {
-            //parse string to Value
-            if(row[ind].type == ColType::TYPE_INT){
-                row[ind].set_int(std::stoi(field));
+
+        while (std::getline(ss, field, ',') && ind < row.size()) {
+            const ColType& col_type = row[ind].type;
+
+            switch (col_type) {
+                case TYPE_INT: {
+                    row[ind].set_int(std::stoi(field));
+                    break;
+                }
+                case TYPE_FLOAT: {
+                    row[ind].set_float(std::stof(field));
+                    break;
+                }
+                case TYPE_STRING: {
+                    row[ind].set_str(field);
+                    break;
+                }
+                default: {
+                    assert(0);
+                }
             }
-            else if(row[ind].type == ColType::TYPE_FLOAT){
-                row[ind].set_float(std::stof(field));
-            }
-            else if(row[ind].type == ColType::TYPE_STRING){
-                row[ind].set_str(field);
-            }
-            else{
-                assert(0);
-            }
-            row[ind].cover_raw(tab_meta.cols[ind].len);
-            ind++;
+            row[ind].cover_raw(col_lens[ind]);
+            ++ind;
         }
+
         load_pre_insert(fh_, row, tab_meta, buffer_load_record, nullptr);
 
-        //先插然后判断是否需要切换buffer
         rid_ = fh_->insert_record_for_load_data(buffer_load_record.data, page_buffer);
         insert_into_index(tab_meta, buffer_load_record, nullptr, rid_);
     }
-    std::cout << "all line num is: " << line_num << std::endl;
-//    fh_->buffer_pool_manager_->unpin_page(page_buffer.page->get_page_id(), true);
+
+    std::cout << "All line numbers: " << line_num << std::endl;
     ifs.close();
 }
+
 
 void SmManager::load_pre_insert(RmFileHandle* fh_, std::vector<Value>& values_, TabMeta& tab_, RmRecord& rec, Context* context_) {
     for (size_t i = 0; i < values_.size(); ++i) {

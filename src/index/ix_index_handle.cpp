@@ -318,13 +318,11 @@ IxNodeHandle *IxIndexHandle::split(IxNodeHandle *node) {
  * 右半部分的键值对分裂为新的右兄弟节点，在参数中称为new_page（参考Split函数来理解old_page和new_page）
  * @note 本函数执行完毕后，new page和old page都需要在函数外面进行unpin
  */
-void IxIndexHandle::insert_into_parent(IxNodeHandle *old_page, const char *key, IxNodeHandle *new_page,
-                                       Transaction *transaction) {
-
+void IxIndexHandle::insert_into_parent(IxNodeHandle *old_page, const char *key, IxNodeHandle *new_page, Transaction *transaction) {
     // 1. 分裂前的结点（原结点, old_page）是否为根结点，如果为根结点需要分配新的root
     if (old_page->is_root_page()) {
-        // 创建一个新的根结点
-        IxNodeHandle *new_root_page = create_node();
+        // 创建一个新的根结点并使用智能指针管理其生命周期
+        std::unique_ptr<IxNodeHandle> new_root_page(create_node());
 
         // 初始化新的根结点
         new_root_page->page_hdr->num_key = 0;
@@ -344,12 +342,10 @@ void IxIndexHandle::insert_into_parent(IxNodeHandle *old_page, const char *key, 
         new_page->page_hdr->parent = new_root_page_no;
         old_page->page_hdr->parent = new_root_page_no;
 
-        // 释放new_root_page
-        delete new_root_page;
+        // new_root_page的生命周期由智能指针自动管理，无需手动delete
     } else {
-
-        // 2. 获取原结点（old_page）的父亲结点
-        IxNodeHandle *parent_page = fetch_node(old_page->get_parent_page_no());
+        // 2. 获取原结点（old_page）的父亲结点并使用智能指针管理
+        std::unique_ptr<IxNodeHandle> parent_page(fetch_node(old_page->get_parent_page_no()));
 
         // 3. 获取key对应的rid，并将(key, rid)插入到父亲结点
         int child_idx = parent_page->find_child(old_page);
@@ -357,25 +353,20 @@ void IxIndexHandle::insert_into_parent(IxNodeHandle *old_page, const char *key, 
 
         // 4. 如果父亲结点仍需要继续分裂，则进行递归插入
         if (parent_page->get_size() == parent_page->get_max_size()) {
-            // 分裂父节点
-            IxNodeHandle *new_parent_page = split(parent_page);
+            // 分裂父节点，并使用智能指针管理
+            std::unique_ptr<IxNodeHandle> new_parent_page(split(parent_page.get()));
 
             // 递归将new_parent_page的第一个key插入到其父节点中
-            insert_into_parent(parent_page, new_parent_page->get_key(0), new_parent_page, transaction);
+            insert_into_parent(parent_page.get(), new_parent_page->get_key(0), new_parent_page.get(), transaction);
 
-            // 解除固定新的父节点页面
+            // 解除固定新的父节点页面（智能指针会自动释放new_parent_page）
             buffer_pool_manager_->unpin_page(new_parent_page->get_page_id(), true);
-
-            // 释放new_parent_page
-            delete new_parent_page;
         }
-        // 解除固定父节点页面
+        // 解除固定父节点页面（智能指针会自动释放parent_page）
         buffer_pool_manager_->unpin_page(parent_page->get_page_id(), true);
-
-        // 释放parent_page
-        delete parent_page;
     }
 }
+
 
 
 /**
