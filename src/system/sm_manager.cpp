@@ -550,15 +550,17 @@ void SmManager::insert_into_index(TabMeta& tab_, RmRecord& rec, Context* context
         auto ih = ihs_.at(
                 get_ix_manager()->get_index_name(table_name, index.cols)).get();
 
-        std::vector<char> key(index.col_tot_len);
+//        std::vector<char> key(index.col_tot_len);
+        char* key = new char[index.col_tot_len];
         int offset = 0;
         for (size_t i = 0; i < index.col_num; ++i) {
-            memcpy(key.data() + offset, rec.data + index.cols[i].offset, index.cols[i].len);
+            memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
             offset += index.cols[i].len;
         }
 
         try {
-            ih->insert_entry_load(key.data(), rid_, context_==nullptr? nullptr:context_->txn_);
+            ih->insert_entry_load(key, rid_, context_==nullptr? nullptr:context_->txn_);
+            delete[] key;
         } catch (InternalError &error) {
             throw InternalError("Non-unique index!");
         }

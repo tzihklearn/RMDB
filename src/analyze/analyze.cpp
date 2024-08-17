@@ -276,10 +276,10 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
     }
 
     if (flag) {
-        while (*context->load_count != 0) {
-//                        std::cout << "Thread is going to sleep for 1 seconds to wait load_count\n";
-            std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠1秒
-        }
+//        while (*context->load_count != 0) {
+////                        std::cout << "Thread is going to sleep for 1 seconds to wait load_count\n";
+//            std::this_thread::sleep_for(std::chrono::seconds(1)); // 休眠1秒
+//        }
 //        exit(1);
 //        int a  = 1;
         // 2 min 20 s
