@@ -509,74 +509,39 @@ void SmManager::load_csv_itermodel(const std::string& file_name, const std::stri
 
 void SmManager::load_pre_insert(RmFileHandle* fh_, std::vector<Value>& values_, TabMeta& tab_, RmRecord& rec, Context* context_) {
     for (size_t i = 0; i < values_.size(); ++i) {
-        auto &col = tab_.cols[i];
-        auto &val = values_[i];
-        if (col.type != val.type) {
-            assert(0);
-        }
-        // if(col.type == TYPE_DATETIME) {
-        //     if(!SmManager::check_datetime_(val.datetime_val)){
-        //         throw InvalidValueError(val.datetime_val);
-        //     }
-        // }
+        const ColMeta& col = tab_.cols[i];
+        const Value& val = values_[i];
+
+        assert(col.type == val.type);  // 类型检查
+
+        // 复制数据到目标记录
         memcpy(rec.data + col.offset, val.raw->data, col.len);
     }
-    // for(size_t i = 0; i < tab_.indexes.size(); ++i) {
-    //     auto& index = tab_.indexes[i];
-    //     auto ih = ihs_.at(get_ix_manager()->get_index_name(tab_.name, index.cols)).get();
-    //     #ifndef ENABLE_LOCK_CRABBING
-    //         std::lock_guard<std::mutex> lg(ih->root_latch_);
-    //      #endif
-    //     char* key = new char[index.col_tot_len];
-    //     int offset = 0;
-    //     for(size_t i = 0; i < (size_t)index.col_num; ++i) {
-    //         memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
-    //         offset += index.cols[i].len;
-    //     }
-    //     bool is_failed = ih->binary_search(key, context_).page_no != -1;
-    //     if(is_failed){
-    //         delete[] key;
-    //         throw IndexInsertDuplicatedError();
-    //     }
-    //     delete[] key;
-    // }
 }
 
-void SmManager::insert_into_index(TabMeta& tab_, RmRecord& rec, Context* context_, Rid& rid_){
-    // Insert into index
-//    for(size_t i = 0; i < tab_.indexes.size(); ++i) {
-//        auto& index = tab_.indexes[i];
-//        auto ih = ihs_.at(get_ix_manager()->get_index_name(tab_.name, index.cols)).get();
-//        char* key = new char[index.col_tot_len];
-//        int offset = 0;
-//        for(size_t i = 0; i < (size_t)index.col_num; ++i) {
-//            memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
-//            offset += index.cols[i].len;
-//        }
-//        ih->insert_entry_load(key, rid_, context_==nullptr? nullptr:context_->txn_);
-//        delete[] key;
-//    }
-    // 插入索引条目
-    auto indexes = tab_.indexes;
-    auto table_name = tab_.name;
-    for (auto &index: indexes) {
-        auto ih = ihs_.at(
-                get_ix_manager()->get_index_name(table_name, index.cols)).get();
 
-//        std::vector<char> key(index.col_tot_len);
-        char* key = new char[index.col_tot_len];
+void SmManager::insert_into_index(TabMeta& tab_, RmRecord& rec, Context* context_, Rid& rid_) {
+    auto& indexes = tab_.indexes;
+    auto& table_name = tab_.name;
+    auto* txn = context_ ? context_->txn_ : nullptr;
+
+    for (const auto& index : indexes) {
+        auto ih = ihs_.at(get_ix_manager()->get_index_name(table_name, index.cols)).get();
+
+        std::unique_ptr<char[]> key(new char[index.col_tot_len]);
         int offset = 0;
+
         for (size_t i = 0; i < index.col_num; ++i) {
-            memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
+            memcpy(key.get() + offset, rec.data + index.cols[i].offset, index.cols[i].len);
             offset += index.cols[i].len;
         }
 
         try {
-            ih->insert_entry_load(key, rid_, context_==nullptr? nullptr:context_->txn_);
-            delete[] key;
-        } catch (InternalError &error) {
+            ih->insert_entry_load(key.get(), rid_, txn);
+        } catch (InternalError& error) {
             throw InternalError("Non-unique index!");
         }
     }
 }
+
 
