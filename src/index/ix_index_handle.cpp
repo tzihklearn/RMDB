@@ -448,11 +448,11 @@ page_id_t IxIndexHandle::insert_entry_load(const char *ins_key, const Rid &ins_v
     std::scoped_lock tree_lock{root_latch_};
 
     // 1. 查找ins_key值应该插入到哪个叶子节点
-    page_id_t child_page_no = file_hdr_->last_leaf_;
-    auto cur_hdl = fetch_node(child_page_no);
-    std::pair<IxNodeHandle *, bool> leaf_page_result = {cur_hdl, false};
+//    page_id_t child_page_no = file_hdr_->last_leaf_;
+//    auto cur_hdl = fetch_node(child_page_no);
+//    std::pair<IxNodeHandle *, bool> leaf_page_result = {cur_hdl, false};
 
-//    std::pair<IxNodeHandle *, bool> leaf_page_result = find_leaf_page(ins_key, Operation::INSERT, txn);
+    std::pair<IxNodeHandle *, bool> leaf_page_result = find_leaf_page(ins_key, Operation::INSERT, txn);
 
     // 找不到应该插入哪个叶子节点
     if (!leaf_page_result.first) {
