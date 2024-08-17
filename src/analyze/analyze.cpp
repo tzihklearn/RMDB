@@ -91,12 +91,14 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
                     for (auto &column: allColumns) {
                         TabCol selCol = {.tab_name = column.tab_name, .col_name = column.name};
                         query->cols.push_back(selCol);
+                        query->output_cols.push_back(selCol);
                         query->aggregate_metas.emplace_back(convert_sv_aggregate_op(ast::SV_AGGREGATE_NULL), selCol);
                     }
                 } else {
                     TabCol selCol = {.tab_name = selColumn->tab_name, .col_name = selColumn->col_name};
                     selCol = check_column(allColumns, selCol);
                     query->cols.push_back(selCol);
+                    query->output_cols.push_back(selCol);
                     query->aggregate_metas.emplace_back(convert_sv_aggregate_op(selColumn->ag_type), selCol);
 
                     if (!groupByColsSet.empty()) {
@@ -141,6 +143,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
             for (auto &column: allColumns) {
                 TabCol selCol = {.tab_name = column.tab_name, .col_name = column.name};
                 query->cols.push_back(selCol);
+                query->output_cols.push_back(selCol);
                 query->aggregate_metas.emplace_back(convert_sv_aggregate_op(ast::SV_AGGREGATE_NULL), selCol);
             }
         }
@@ -590,6 +593,7 @@ std::shared_ptr<Query> Analyze::do_sub_query_analyze(std::shared_ptr<ast::SubSel
                     selCol.tab_name = query->tables[0];
                 }
                 query->cols.push_back(selCol);
+                query->output_cols.push_back(selCol);
                 query->aggregate_metas.emplace_back(convert_sv_aggregate_op(selColumn->ag_type), selCol);
 
                 if (!groupByColsSet.empty()) {
@@ -619,7 +623,8 @@ std::shared_ptr<Query> Analyze::do_sub_query_analyze(std::shared_ptr<ast::SubSel
                                                                               : selColumn->as_name};
 
                 TabCol selCol = {.tab_name = query->tables[0], .col_name = selColumn->col_name};
-                query->cols.push_back(outputCol);
+                query->cols.push_back(selCol);
+                query->output_cols.push_back(outputCol);
                 query->aggregate_metas.emplace_back(convert_sv_aggregate_op(selColumn->ag_type), selCol);
             }
         }

@@ -586,7 +586,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
             // 聚合函数query转plan
 
             // 扫描表方式
-            std::shared_ptr<Plan> table_scan_plan;
+//            std::shared_ptr<Plan> table_scan_plan;
 
             // TODO: 未处理索引
             // 设置扫描表的执行计划
@@ -597,15 +597,21 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
             Query queryT = *query;
             std::shared_ptr<Query> queryT_ = std::make_shared<Query>(queryT);
             std::shared_ptr<Plan> projection = generate_select_plan(std::move(queryT_), context);
-            // 设置聚合函数的执行计划，将表扫描的执行计划作为子计划
-            auto aggregatePlan = std::make_shared<DMLPlan>(T_SvAggregate, projection, query->tables[0],
-                                                           std::vector<Value>(), query->conds,
-                                                           std::vector<SetClause>());
-            aggregatePlan->aggregationMetas_ = query->aggregate_metas;
-            aggregatePlan->group_by_cols_ = query->group_by_cols;
+            if (auto projectionPlan = std::dynamic_pointer_cast<ProjectionPlan>(projection)) {
+                // 设置聚合函数的执行计划，将表扫描的执行计划作为子计划
+                auto aggregatePlan = std::make_shared<DMLPlan>(T_SvAggregate, projectionPlan->subplan_, query->tables[0],
+                                                               std::vector<Value>(), query->conds,
+                                                               std::vector<SetClause>());
+                aggregatePlan->aggregationMetas_ = query->aggregate_metas;
+                aggregatePlan->group_by_cols_ = query->group_by_cols;
 
-            aggregatePlan->output_col_ = query->output_cols;
-            return aggregatePlan;
+                aggregatePlan->output_col_ = query->output_cols;
+                return aggregatePlan;
+            } else {
+                throw InternalError("Unexpected AST root");
+            }
+
+
         } else {
             std::shared_ptr<plannerInfo> root = std::make_shared<plannerInfo>(x);
             // 生成select语句的查询执行计划
