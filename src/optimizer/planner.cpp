@@ -590,12 +590,15 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
 
             // TODO: 未处理索引
             // 设置扫描表的执行计划
-            table_scan_plan = std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, query->tables[0], query->conds,
-                                                         std::vector<std::string>(),
-                                                         false);
-
+//            table_scan_plan = std::make_shared<ScanPlan>(T_SeqScan, sm_manager_, query->tables[0], query->conds,
+//                                                         std::vector<std::string>(),
+//                                                         false);
+            // 生成select语句的查询执行计划
+            Query queryT = *query;
+            std::shared_ptr<Query> queryT_ = std::make_shared<Query>(queryT);
+            std::shared_ptr<Plan> projection = generate_select_plan(std::move(queryT_), context);
             // 设置聚合函数的执行计划，将表扫描的执行计划作为子计划
-            auto aggregatePlan = std::make_shared<DMLPlan>(T_SvAggregate, table_scan_plan, query->tables[0],
+            auto aggregatePlan = std::make_shared<DMLPlan>(T_SvAggregate, projection, query->tables[0],
                                                            std::vector<Value>(), query->conds,
                                                            std::vector<SetClause>());
             aggregatePlan->aggregationMetas_ = query->aggregate_metas;

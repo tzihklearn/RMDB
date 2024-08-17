@@ -48,6 +48,21 @@ class Query{
 
     Query()= default;
 
+    // 自定义拷贝构造函数，进行深拷贝
+    Query(const Query &query){
+        parse = query.parse;
+        conds = query.conds;
+        cols = query.cols;
+        tables = query.tables;
+        set_clauses = query.set_clauses;
+        values = query.values;
+        aggregate_metas = query.aggregate_metas;
+        group_by_cols = query.group_by_cols;
+        sort_mete = query.sort_mete;
+        join_col = query.join_col;
+        file_url = query.file_url;
+    }
+
 };
 
 class Analyze
