@@ -604,7 +604,7 @@ std::shared_ptr<Plan> Planner::do_planner(std::shared_ptr<Query> query, Context 
             aggregatePlan->aggregationMetas_ = query->aggregate_metas;
             aggregatePlan->group_by_cols_ = query->group_by_cols;
 
-            aggregatePlan->output_col_ = query->cols;
+            aggregatePlan->output_col_ = query->output_cols;
             return aggregatePlan;
         } else {
             std::shared_ptr<plannerInfo> root = std::make_shared<plannerInfo>(x);

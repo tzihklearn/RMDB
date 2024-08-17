@@ -128,6 +128,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse,
 
                 TabCol selCol = {.tab_name = query->tables[0], .col_name = selColumn->col_name};
                 query->cols.push_back(selCol);
+                query->output_cols.push_back(outputCol);
                 query->aggregate_metas.emplace_back(convert_sv_aggregate_op(selColumn->ag_type), selCol);
             }
         }

@@ -28,6 +28,7 @@ class Query{
     std::vector<Condition> conds;
     // 投影列
     std::vector<TabCol> cols;
+    std::vector<TabCol> output_cols;
     // 表名
     std::vector<std::string> tables;
     // update 的set 值
