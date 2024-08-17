@@ -448,10 +448,6 @@ page_id_t IxIndexHandle::insert_entry_load(const char *ins_key, const Rid &ins_v
     std::scoped_lock tree_lock{root_latch_};
 
     // 1. 查找ins_key值应该插入到哪个叶子节点
-//    page_id_t child_page_no = file_hdr_->last_leaf_;
-//    auto cur_hdl = fetch_node(child_page_no);
-//    std::pair<IxNodeHandle *, bool> leaf_page_result = {cur_hdl, false};
-
     std::pair<IxNodeHandle *, bool> leaf_page_result = find_leaf_page(ins_key, Operation::INSERT, txn);
 
     // 找不到应该插入哪个叶子节点
@@ -459,8 +455,8 @@ page_id_t IxIndexHandle::insert_entry_load(const char *ins_key, const Rid &ins_v
         throw IndexEntryNotFoundError();
     }
 
-    // 获取叶子节点句柄
-    IxNodeHandle *leaf_node_handle = leaf_page_result.first;
+    // 使用智能指针管理leaf_node_handle的生命周期
+    std::unique_ptr<IxNodeHandle> leaf_node_handle(leaf_page_result.first);
 
     // 检查是否存在重复的键
     if (leaf_node_handle->is_exist_key(ins_key)) {
@@ -477,7 +473,7 @@ page_id_t IxIndexHandle::insert_entry_load(const char *ins_key, const Rid &ins_v
         return -1;
     } else if (leaf_node_handle->get_size() == leaf_node_handle->get_max_size()) {
         // 3. 如果结点已满，分裂结点，并把新结点的相关信息插入父节点
-        IxNodeHandle *new_leaf_node = split(leaf_node_handle);
+        std::unique_ptr<IxNodeHandle> new_leaf_node(split(leaf_node_handle.get()));
 
         // 如果该叶子是最后一片叶子，更新文件头部的最后叶子节点页号
         if (leaf_node_handle->get_page_no() == file_hdr_->last_leaf_) {
@@ -485,26 +481,19 @@ page_id_t IxIndexHandle::insert_entry_load(const char *ins_key, const Rid &ins_v
         }
 
         // 将新叶子节点的第一个键插入到父节点
-        insert_into_parent(leaf_node_handle, new_leaf_node->get_key(0), new_leaf_node, txn);
+        insert_into_parent(leaf_node_handle.get(), new_leaf_node->get_key(0), new_leaf_node.get(), txn);
 
         // 解除页面固定
         buffer_pool_manager_->unpin_page(leaf_node_handle->get_page_id(), true);
-
-        // 释放新叶子节点句柄
-        delete new_leaf_node;
     }
 
     // 解除页面固定
     buffer_pool_manager_->unpin_page(leaf_node_handle->get_page_id(), false);
 
     // 获取叶子节点的页面编号
-    auto leaf_page_id = leaf_node_handle->get_page_no();
-
-    // 释放叶子节点句柄
-    delete leaf_node_handle;
-
-    return leaf_page_id;
+    return leaf_node_handle->get_page_no();
 }
+
 
 
 /**
